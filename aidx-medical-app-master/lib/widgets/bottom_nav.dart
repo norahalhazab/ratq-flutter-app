@@ -30,7 +30,6 @@ class AppBottomNav extends StatelessWidget {
         break;
       case 2:
       // screen = const AlertsScreen();
-      // If you don't have alerts yet:
         screen = const _AlertsPlaceholder();
         break;
       case 3:
@@ -49,42 +48,46 @@ class AppBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 57,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: const Border(top: BorderSide(color: Color(0x26000000), width: 1)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _NavItem(
-            label: "Home",
-            icon: Icons.home_outlined,
-            selected: currentIndex == 0,
-            onTap: () => _go(context, 0),
-          ),
-          _NavItem(
-            label: "Cases",
-            icon: Icons.folder_outlined,
-            selected: currentIndex == 1,
-            onTap: () => _go(context, 1),
-          ),
-          _NavItem(
-            label: "Alerts",
-            icon: Icons.notifications_none,
-            selected: currentIndex == 2,
-            onTap: () => _go(context, 2),
-          ),
-          _NavItem(
-            label: "Settings",
-            icon: Icons.settings_outlined,
-            selected: currentIndex == 3,
-            onTap: () => _go(context, 3),
-          ),
-        ],
+    return SafeArea(
+      top: false,
+      child: Container(
+        // fix overflow: give it enough height + less vertical padding
+        height: 70,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: const Border(top: BorderSide(color: Color(0x26000000), width: 1)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _NavItem(
+              label: "Home",
+              icon: Icons.home_outlined,
+              selected: currentIndex == 0,
+              onTap: () => _go(context, 0),
+            ),
+            _NavItem(
+              label: "Cases",
+              icon: Icons.folder_outlined,
+              selected: currentIndex == 1,
+              onTap: () => _go(context, 1),
+            ),
+            _NavItem(
+              label: "Alerts",
+              icon: Icons.notifications_none,
+              selected: currentIndex == 2,
+              onTap: () => _go(context, 2),
+            ),
+            _NavItem(
+              label: "Settings",
+              icon: Icons.settings_outlined,
+              selected: currentIndex == 3,
+              onTap: () => _go(context, 3),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -119,14 +122,16 @@ class _NavItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 20, color: color),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3), //  slightly smaller
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis, //  extra safety
               style: GoogleFonts.inter(
-                fontSize: 11.6,
+                fontSize: 11.0, //  slightly smaller
                 fontWeight: FontWeight.w600,
                 color: color,
-                height: 16 / 11.6,
+                height: 1.1, //  tighter line height
               ),
             ),
           ],

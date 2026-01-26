@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../widgets/bottom_nav.dart';
-import 'profile_screen.dart';
+import 'Personal_Information_Screen.dart';
 import 'wearable_screen.dart'; // change to your smartwatch screen file
 import 'auth/login_screen.dart';
 
@@ -67,8 +67,9 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                        MaterialPageRoute(builder: (_) => const PersonalInformationScreen()),
                       );
+
                     },
                   ),
                   const SizedBox(height: 12),
