@@ -1,0 +1,73 @@
+buildscript {
+    ext.kotlin_version = '1.9.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.6.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.google.gms:google-services:4.4.1'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// Force Kotlin version for all subprojects to avoid "old plugin" errors
+// Removed sound_stream fix
+
+rootProject.buildDir = '../build'
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+// Force AndroidX Core 1.13.1 to satisfy Flutter TextInput
+subprojects {
+    configurations.all {
+        resolutionStrategy {
+            force 'androidx.core:core:1.13.1'
+            force 'androidx.core:core-ktx:1.13.1'
+        }
+    }
+}
+
+// Workaround: Some older plugins (e.g., qr_code_scanner ^1.0.1) miss an AGP namespace.
+// Define a namespace dynamically to satisfy AGP 8+ without forking the plugin.
+subprojects { project ->
+    if (project.name.contains('qr_code_scanner')) {
+        project.afterEvaluate {
+            if (project.hasProperty('android')) {
+                def androidExt = project.android
+                if (!androidExt.hasProperty('namespace') || androidExt.namespace == null) {
+                    androidExt.namespace = "com.aidx.thirdparty.qr_code_scanner"
+                }
+                // Align Java/Kotlin targets for this legacy plugin to avoid JVM target mismatch
+                androidExt.compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_1_8
+                    targetCompatibility JavaVersion.VERSION_1_8
+                }
+                if (androidExt.hasProperty('kotlinOptions')) {
+                    androidExt.kotlinOptions {
+                        jvmTarget = '1.8'
+                    }
+                } else if (project.hasProperty('kotlin')) {
+                    project.kotlin {
+                        jvmToolchain(8)
+                    }
+                }
+            }
+        }
+    }
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

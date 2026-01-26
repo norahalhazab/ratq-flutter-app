@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "988081859935",
+    "project_id": "aidx-b75e7",
+    "storage_bucket": "aidx-b75e7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:988081859935:android:518aaa6466be57a91e9aea",
+        "android_client_info": {
+          "package_name": "com.aidx.health.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "988081859935-rlh3e223a2mumhcalchapvofsvfcati0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aidx.health.app",
+            "certificate_hash": "16da9e2de6e26052b0a2630c7c6b8df5372ca8a7"
+          }
+        },
+        {
+          "client_id": "988081859935-59ppi014t8vc1tsb0am323l7cc08qm42.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDT_h0UHIFE65u7YsFhxXDO1MFDKwjheeY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "988081859935-59ppi014t8vc1tsb0am323l7cc08qm42.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
