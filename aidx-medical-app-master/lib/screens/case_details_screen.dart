@@ -3,11 +3,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'whq_screen.dart'; // <-- عدّلي المسار لو مختلف
+import 'whq_screen.dart';
+import 'cases_screen.dart';
+import 'dashboard_screen.dart';
+import 'settings.dart';
 
 class CaseDetailsScreen extends StatelessWidget {
   const CaseDetailsScreen({super.key, required this.caseId});
   final String caseId;
+
+  static const bg = Color(0xFFFFFFFF);
+  static const cardBg = Color(0xFFD8E7EF);
+  static const primary = Color(0xFF3B7691);
+  static const secondary = Color(0xFF63A2BF);
+  static const border = Color(0xFFC8D3DF);
+  static const dangerBtn = Color(0xCC7A0000);
 
   @override
   Widget build(BuildContext context) {
@@ -25,68 +35,68 @@ class CaseDetailsScreen extends StatelessWidget {
         .collection('cases')
         .doc(caseId);
 
-    const bg = Color(0xFFFFFFFF);
-    const cardBg = Color(0xFFD8E7EF);
-    const primary = Color(0xFF3B7691);
-    const secondary = Color(0xFF63A2BF);
-    const border = Color(0xFFC8D3DF);
-    const dangerBtn = Color(0xCC7A0000);
-
     return Scaffold(
       backgroundColor: bg,
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 1,
+        onTap: (index) {
+          if (index == 1) return;
+
+          Widget target;
+          if (index == 0) {
+            target = const DashboardScreen();
+          } else if (index == 3) {
+            target = const SettingsScreen();
+          } else {
+            return;
+          }
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => target),
+                (route) => false,
+          );
+        },
+      ),
       body: SafeArea(
         child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: caseRef.snapshots(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
-              return const Center(child: Text('Something went wrong'));
+              return const Center(child: Text("Something went wrong"));
             }
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Center(child: Text('Case not found'));
-            }
 
-            final data = snapshot.data!.data() ?? {};
-
-            final title = (data['title'] as String?) ?? 'Case';
-            final status = (data['status'] as String?) ?? 'active';
+            final data = snapshot.data!.data()!;
+            final title = data['title'] ?? 'Case';
+            final status = (data['status'] ?? 'active').toString().toLowerCase();
 
             final startDate = _formatDate(data['startDate'] ?? data['surgeryDate']);
             final lastUpdated = _formatDate(data['lastUpdated']);
 
             final scoreRaw = data['infectionScore'];
-            final int? score = (scoreRaw is int) ? scoreRaw : int.tryParse('$scoreRaw');
+            final int? score = scoreRaw is int ? scoreRaw : int.tryParse('$scoreRaw');
             final scoreText = score?.toString() ?? '--';
             final assessment = _assessmentFromScore(score);
 
             return Stack(
               children: [
-                // المحتوى
                 SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ✅ سهم لحاله فوق يسار
                       Align(
                         alignment: Alignment.topLeft,
                         child: IconButton(
                           onPressed: () => Navigator.pop(context),
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new,
-                            size: 18,
-                            color: Color(0xFF0F172A),
-                          ),
+                          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
                         ),
                       ),
-
                       const SizedBox(height: 6),
-
-                      // ✅ أيقونة الملف + العنوان (بدون السهم جنبهم)
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           _FolderBubble(secondary: secondary),
                           const SizedBox(width: 12),
@@ -98,16 +108,12 @@ class CaseDetailsScreen extends StatelessWidget {
                               style: GoogleFonts.dmSans(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFF0F172A),
                               ),
                             ),
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 18),
-
-                      // CARD
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
@@ -128,54 +134,22 @@ class CaseDetailsScreen extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Text(
-                                  "case overview",
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 14,
-                                    color: const Color(0xFF0F172A),
-                                  ),
-                                ),
+                                const Text("Case Overview"),
                                 const Spacer(),
                                 _StatusChip(
-                                  text: status,
-                                  primary: primary,
-                                  secondary: secondary,
+                                  status: status,
                                 ),
                               ],
                             ),
-
                             const SizedBox(height: 14),
-
-                            Text(
-                              "Start date",
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                color: const Color(0xFF36404F),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _InfoRow(
-                              icon: Icons.calendar_today_outlined,
-                              value: startDate,
-                            ),
-
+                            const Text("Start date"),
+                            const SizedBox(height: 6),
+                            _InfoRow(icon: Icons.calendar_today_outlined, value: startDate),
                             const SizedBox(height: 14),
-
-                            Text(
-                              "Last Updated",
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF36404F),
-                                fontSize: 12.9,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _InfoRow(
-                              icon: Icons.access_time,
-                              value: lastUpdated,
-                            ),
-
+                            const Text("Last Updated"),
+                            const SizedBox(height: 6),
+                            _InfoRow(icon: Icons.access_time, value: lastUpdated),
                             const SizedBox(height: 16),
-
                             Container(
                               padding: const EdgeInsets.only(top: 16),
                               decoration: const BoxDecoration(
@@ -183,34 +157,24 @@ class CaseDetailsScreen extends StatelessWidget {
                               ),
                               child: Row(
                                 children: [
-                                  Text(
-                                    "Infection Score",
-                                    style: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF0F172A),
-                                    ),
-                                  ),
+                                  const Text("Infection Score"),
                                   const Spacer(),
                                   Text(
                                     scoreText,
                                     style: GoogleFonts.dmSans(
                                       fontSize: 24,
                                       fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF0F172A),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-
                             const SizedBox(height: 12),
-
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: secondary.withOpacity(0.10),
                                 borderRadius: BorderRadius.circular(999),
-                                border: Border.all(color: secondary.withOpacity(0.20)),
                               ),
                               child: Text(
                                 assessment,
@@ -221,15 +185,12 @@ class CaseDetailsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-
                             const SizedBox(height: 14),
-
-                            // ✅ Navigation to WHQ
                             SizedBox(
                               width: double.infinity,
                               height: 40,
                               child: ElevatedButton(
-                                onPressed: status.toLowerCase() == 'closed'
+                                onPressed: status == 'closed'
                                     ? null
                                     : () {
                                   Navigator.push(
@@ -241,20 +202,11 @@ class CaseDetailsScreen extends StatelessWidget {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: primary,
-                                  disabledBackgroundColor: primary.withOpacity(0.35),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  elevation: 0,
                                 ),
-                                child: Text(
-                                  "Start daily check",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13.2,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                                child: const Text("Start daily check"),
                               ),
                             ),
                           ],
@@ -263,27 +215,16 @@ class CaseDetailsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                // Bottom Close button
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: bg,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
-                          blurRadius: 16,
-                          offset: const Offset(0, -6),
-                        ),
-                      ],
-                    ),
+                    decoration: const BoxDecoration(color: bg),
                     child: SizedBox(
                       width: double.infinity,
                       height: 40,
                       child: ElevatedButton.icon(
-                        onPressed: status.toLowerCase() == 'closed'
+                        onPressed: status == 'closed'
                             ? null
                             : () async {
                           await caseRef.update({
@@ -291,22 +232,13 @@ class CaseDetailsScreen extends StatelessWidget {
                             'lastUpdated': FieldValue.serverTimestamp(),
                           });
                         },
-                        icon: const Icon(Icons.delete_outline, color: Colors.white),
-                        label: Text(
-                          "Close wound case",
-                          style: GoogleFonts.inter(
-                            fontSize: 13.2,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text("Close wound case"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: dangerBtn,
-                          disabledBackgroundColor: dangerBtn.withOpacity(0.35),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          elevation: 0,
                         ),
                       ),
                     ),
@@ -321,46 +253,32 @@ class CaseDetailsScreen extends StatelessWidget {
   }
 }
 
-/// ✅ Folder bubble widget (نفس شكل الموكاب)
+/* ---------- UI Components ---------- */
+
 class _FolderBubble extends StatelessWidget {
   const _FolderBubble({required this.secondary});
   final Color secondary;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: secondary.withOpacity(0.18),
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: const Color(0xFF2F3A4A),
+        boxShadow: [
+          BoxShadow(
+            color: secondary.withOpacity(0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
-        ),
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFF2F3A4A),
-            boxShadow: [
-              BoxShadow(
-                color: secondary.withOpacity(0.35),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.folder_outlined, color: Colors.white, size: 22),
-        ),
-      ],
+        ],
+      ),
+      child: const Icon(Icons.folder_outlined, color: Colors.white),
     );
   }
 }
-
-/// ✅ helpers widgets
 
 class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.icon, required this.value});
@@ -371,70 +289,46 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: const Color(0xFF0F172A)),
+        Icon(icon, size: 16),
         const SizedBox(width: 8),
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 14,
-            color: const Color(0xFF0F172A),
-          ),
-        ),
+        Text(value),
       ],
     );
   }
 }
 
 class _StatusChip extends StatelessWidget {
-  const _StatusChip({
-    required this.text,
-    required this.primary,
-    required this.secondary,
-  });
-
-  final String text;
-  final Color primary;
-  final Color secondary;
+  const _StatusChip({required this.status});
+  final String status;
 
   @override
   Widget build(BuildContext context) {
-    final t = text.toLowerCase();
-    final isClosed = t == 'closed';
-
-    // ✅ Closed: خلفية رمادي غامق + نص أبيض
-    final bgColor = isClosed ? const Color(0xFF64748B) : secondary.withOpacity(0.18);
-    final borderColor = isClosed ? const Color(0xFF64748B) : secondary.withOpacity(0.25);
-    final textColor = isClosed ? Colors.white : primary;
+    final isClosed = status == 'closed';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: isClosed ? const Color(0xFF64748B) : const Color(0xFF63A2BF).withOpacity(0.18),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: borderColor),
       ),
       child: Text(
         isClosed ? "Closed" : "Active",
         style: GoogleFonts.inter(
           fontSize: 11.4,
           fontWeight: FontWeight.w600,
-          color: textColor,
+          color: isClosed ? Colors.white : const Color(0xFF3B7691),
         ),
       ),
     );
   }
 }
 
-/// date + assessment helpers
+/* ---------- Helpers ---------- */
 
 String _formatDate(dynamic value) {
   if (value == null) return "--";
   try {
-    DateTime dt;
-    if (value is Timestamp) dt = value.toDate();
-    else if (value is DateTime) dt = value;
-    else if (value is String) dt = DateTime.tryParse(value) ?? DateTime.now();
-    else return "--";
+    final DateTime dt = value is Timestamp ? value.toDate() : value;
     return "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
   } catch (_) {
     return "--";
