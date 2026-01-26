@@ -3,10 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../widgets/bottom_nav.dart';
 import 'whq_screen.dart';
-import 'cases_screen.dart';
-import 'dashboard_screen.dart';
-import 'settings.dart';
 
 class CaseDetailsScreen extends StatelessWidget {
   const CaseDetailsScreen({super.key, required this.caseId});
@@ -37,27 +35,7 @@ class CaseDetailsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: bg,
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: 1,
-        onTap: (index) {
-          if (index == 1) return;
-
-          Widget target;
-          if (index == 0) {
-            target = const DashboardScreen();
-          } else if (index == 3) {
-            target = const SettingsScreen();
-          } else {
-            return;
-          }
-
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => target),
-                (route) => false,
-          );
-        },
-      ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
       body: SafeArea(
         child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: caseRef.snapshots(),
@@ -65,13 +43,17 @@ class CaseDetailsScreen extends StatelessWidget {
             if (snapshot.hasError) {
               return const Center(child: Text("Something went wrong"));
             }
-            if (!snapshot.hasData) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return const Center(child: Text("Case not found"));
+            }
 
-            final data = snapshot.data!.data()!;
-            final title = data['title'] ?? 'Case';
-            final status = (data['status'] ?? 'active').toString().toLowerCase();
+            final data = snapshot.data!.data() ?? {};
+
+            final title = (data['title'] as String?) ?? 'Case';
+            final status = ((data['status'] as String?) ?? 'active').toLowerCase();
 
             final startDate = _formatDate(data['startDate'] ?? data['surgeryDate']);
             final lastUpdated = _formatDate(data['lastUpdated']);
@@ -92,13 +74,18 @@ class CaseDetailsScreen extends StatelessWidget {
                         alignment: Alignment.topLeft,
                         child: IconButton(
                           onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new,
+                            size: 18,
+                            color: Color(0xFF0F172A),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          _FolderBubble(secondary: secondary),
+                          const _FolderBubble(secondary: secondary),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -108,6 +95,7 @@ class CaseDetailsScreen extends StatelessWidget {
                               style: GoogleFonts.dmSans(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0F172A),
                               ),
                             ),
                           ),
@@ -134,21 +122,43 @@ class CaseDetailsScreen extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                const Text("Case Overview"),
-                                const Spacer(),
-                                _StatusChip(
-                                  status: status,
+                                Text(
+                                  "Case Overview",
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 14,
+                                    color: const Color(0xFF0F172A),
+                                  ),
                                 ),
+                                const Spacer(),
+                                _StatusChip(status: status),
                               ],
                             ),
                             const SizedBox(height: 14),
-                            const Text("Start date"),
-                            const SizedBox(height: 6),
-                            _InfoRow(icon: Icons.calendar_today_outlined, value: startDate),
+                            Text(
+                              "Start date",
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                color: const Color(0xFF36404F),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const _InfoRow(
+                              icon: Icons.calendar_today_outlined,
+                              valueBuilder: _startDateBuilder,
+                            ),
                             const SizedBox(height: 14),
-                            const Text("Last Updated"),
-                            const SizedBox(height: 6),
-                            _InfoRow(icon: Icons.access_time, value: lastUpdated),
+                            Text(
+                              "Last Updated",
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF36404F),
+                                fontSize: 12.9,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const _InfoRow(
+                              icon: Icons.access_time,
+                              valueBuilder: _lastUpdatedBuilder,
+                            ),
                             const SizedBox(height: 16),
                             Container(
                               padding: const EdgeInsets.only(top: 16),
@@ -157,13 +167,20 @@ class CaseDetailsScreen extends StatelessWidget {
                               ),
                               child: Row(
                                 children: [
-                                  const Text("Infection Score"),
+                                  Text(
+                                    "Infection Score",
+                                    style: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
                                   const Spacer(),
                                   Text(
                                     scoreText,
                                     style: GoogleFonts.dmSans(
                                       fontSize: 24,
                                       fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF0F172A),
                                     ),
                                   ),
                                 ],
@@ -175,6 +192,7 @@ class CaseDetailsScreen extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: secondary.withOpacity(0.10),
                                 borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: secondary.withOpacity(0.20)),
                               ),
                               child: Text(
                                 assessment,
@@ -202,11 +220,28 @@ class CaseDetailsScreen extends StatelessWidget {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: primary,
+                                  disabledBackgroundColor: primary.withOpacity(0.35),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
+                                  elevation: 0,
                                 ),
-                                child: const Text("Start daily check"),
+                                child: Text(
+                                  "Start daily check",
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13.2,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              "Start: $startDate • Updated: $lastUpdated",
+                              style: GoogleFonts.inter(
+                                fontSize: 11.5,
+                                color: const Color(0xFF64748B),
                               ),
                             ),
                           ],
@@ -219,7 +254,16 @@ class CaseDetailsScreen extends StatelessWidget {
                   alignment: Alignment.bottomCenter,
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(color: bg),
+                    decoration: BoxDecoration(
+                      color: bg,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 16,
+                          offset: const Offset(0, -6),
+                        ),
+                      ],
+                    ),
                     child: SizedBox(
                       width: double.infinity,
                       height: 40,
@@ -232,13 +276,22 @@ class CaseDetailsScreen extends StatelessWidget {
                             'lastUpdated': FieldValue.serverTimestamp(),
                           });
                         },
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text("Close wound case"),
+                        icon: const Icon(Icons.delete_outline, color: Colors.white),
+                        label: Text(
+                          "Close wound case",
+                          style: GoogleFonts.inter(
+                            fontSize: 13.2,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: dangerBtn,
+                          disabledBackgroundColor: dangerBtn.withOpacity(0.35),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
+                          elevation: 0,
                         ),
                       ),
                     ),
@@ -251,9 +304,12 @@ class CaseDetailsScreen extends StatelessWidget {
       ),
     );
   }
-}
 
-/* ---------- UI Components ---------- */
+  static String _startDateBuilder(Map<String, dynamic> data) =>
+      _formatDate(data['startDate'] ?? data['surgeryDate']);
+
+  static String _lastUpdatedBuilder(Map<String, dynamic> data) => _formatDate(data['lastUpdated']);
+}
 
 class _FolderBubble extends StatelessWidget {
   const _FolderBubble({required this.secondary});
@@ -261,38 +317,58 @@ class _FolderBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: const Color(0xFF2F3A4A),
-        boxShadow: [
-          BoxShadow(
-            color: secondary.withOpacity(0.35),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: secondary.withOpacity(0.18),
           ),
-        ],
-      ),
-      child: const Icon(Icons.folder_outlined, color: Colors.white),
+        ),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF2F3A4A),
+            boxShadow: [
+              BoxShadow(
+                color: secondary.withOpacity(0.35),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.folder_outlined, color: Colors.white, size: 22),
+        ),
+      ],
     );
   }
 }
 
+typedef _ValueBuilder = String Function(Map<String, dynamic> data);
+
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.value});
+  const _InfoRow({required this.icon, required this.valueBuilder});
   final IconData icon;
-  final String value;
+  final _ValueBuilder valueBuilder;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 16),
-        const SizedBox(width: 8),
-        Text(value),
-      ],
+    return StreamBuilder(
+      stream: const Stream.empty(),
+      builder: (context, _) {
+        return Row(
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF0F172A)),
+            const SizedBox(width: 8),
+            const SizedBox(),
+          ],
+        );
+      },
     );
   }
 }
@@ -305,30 +381,41 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final isClosed = status == 'closed';
 
+    final bgColor = isClosed ? const Color(0xFF64748B) : const Color(0xFF63A2BF).withOpacity(0.18);
+    final textColor = isClosed ? Colors.white : const Color(0xFF3B7691);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: isClosed ? const Color(0xFF64748B) : const Color(0xFF63A2BF).withOpacity(0.18),
+        color: bgColor,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: bgColor.withOpacity(0.7)),
       ),
       child: Text(
         isClosed ? "Closed" : "Active",
         style: GoogleFonts.inter(
           fontSize: 11.4,
           fontWeight: FontWeight.w600,
-          color: isClosed ? Colors.white : const Color(0xFF3B7691),
+          color: textColor,
         ),
       ),
     );
   }
 }
 
-/* ---------- Helpers ---------- */
-
 String _formatDate(dynamic value) {
   if (value == null) return "--";
   try {
-    final DateTime dt = value is Timestamp ? value.toDate() : value;
+    DateTime dt;
+    if (value is Timestamp) {
+      dt = value.toDate();
+    } else if (value is DateTime) {
+      dt = value;
+    } else if (value is String) {
+      dt = DateTime.tryParse(value) ?? DateTime.now();
+    } else {
+      return "--";
+    }
     return "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
   } catch (_) {
     return "--";

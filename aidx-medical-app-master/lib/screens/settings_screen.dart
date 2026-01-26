@@ -5,7 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/bottom_nav.dart';
 import 'profile_screen.dart';
 import 'wearable_screen.dart'; // change to your smartwatch screen file
-import 'login_screen.dart';    // change to your login screen file
+import 'auth/login_screen.dart';
+
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
