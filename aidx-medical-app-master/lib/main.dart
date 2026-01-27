@@ -29,6 +29,7 @@ import 'package:aidx/screens/health_id_screen.dart';
 import 'package:aidx/screens/qr_scanner_screen.dart';
 import 'package:aidx/services/social_media_service.dart';
 import 'package:aidx/screens/health_habits_screen.dart';
+import 'package:aidx/screens/Homepage.dart';
 import 'package:aidx/screens/sleep_fall_detection_screen.dart';
 import 'package:aidx/providers/community_provider.dart';
 
@@ -344,7 +345,7 @@ class MyApp extends StatelessWidget {
                   return const SplashScreen();
                 },
                 AppConstants.routeLogin: (context) => const LoginScreen(),
-                AppConstants.routeDashboard: (context) => const DashboardScreen(),
+                AppConstants.routeDashboard: (context) => const Homepage(),
                 AppConstants.routeProfile: (context) => ProfileScreen(),
                 AppConstants.routeWearable: (context) => const WearableScreen(),
                 AppConstants.routeSos: (context) => const SosScreen(),

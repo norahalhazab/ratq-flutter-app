@@ -5,6 +5,7 @@ import '../screens/dashboard_screen.dart';
 import '../screens/cases_screen.dart';
 import '../screens/settings_screen.dart';
 // import '../screens/alerts_screen.dart'; // if you have it
+import '../screens/Homepage.dart';
 
 class AppBottomNav extends StatelessWidget {
   const AppBottomNav({
@@ -23,7 +24,7 @@ class AppBottomNav extends StatelessWidget {
     Widget screen;
     switch (index) {
       case 0:
-        screen = const DashboardScreen();
+        screen =  Homepage();
         break;
       case 1:
         screen = const CasesScreen();

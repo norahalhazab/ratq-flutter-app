@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:aidx/services/auth_service.dart';
 import 'package:aidx/screens/dashboard_screen.dart';
+import 'package:aidx/screens/Homepage.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -87,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (user != null && mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(builder: (_) => const Homepage()),
         );
       }
     } finally {
