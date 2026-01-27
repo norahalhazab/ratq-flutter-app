@@ -3,11 +3,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'whq_screen.dart'; // <-- عدّلي المسار لو مختلف
+import '../widgets/bottom_nav.dart';
+import 'whq_screen.dart';
 
 class CaseDetailsScreen extends StatelessWidget {
   const CaseDetailsScreen({super.key, required this.caseId});
   final String caseId;
+
+  static const bg = Color(0xFFFFFFFF);
+  static const cardBg = Color(0xFFD8E7EF);
+  static const primary = Color(0xFF3B7691);
+  static const secondary = Color(0xFF63A2BF);
+  static const border = Color(0xFFC8D3DF);
+  static const dangerBtn = Color(0xCC7A0000);
 
   @override
   Widget build(BuildContext context) {
@@ -25,51 +33,43 @@ class CaseDetailsScreen extends StatelessWidget {
         .collection('cases')
         .doc(caseId);
 
-    const bg = Color(0xFFFFFFFF);
-    const cardBg = Color(0xFFD8E7EF);
-    const primary = Color(0xFF3B7691);
-    const secondary = Color(0xFF63A2BF);
-    const border = Color(0xFFC8D3DF);
-    const dangerBtn = Color(0xCC7A0000);
-
     return Scaffold(
       backgroundColor: bg,
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
       body: SafeArea(
         child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: caseRef.snapshots(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
-              return const Center(child: Text('Something went wrong'));
+              return const Center(child: Text("Something went wrong"));
             }
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
             if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Center(child: Text('Case not found'));
+              return const Center(child: Text("Case not found"));
             }
 
             final data = snapshot.data!.data() ?? {};
 
             final title = (data['title'] as String?) ?? 'Case';
-            final status = (data['status'] as String?) ?? 'active';
+            final status = ((data['status'] as String?) ?? 'active').toLowerCase();
 
             final startDate = _formatDate(data['startDate'] ?? data['surgeryDate']);
             final lastUpdated = _formatDate(data['lastUpdated']);
 
             final scoreRaw = data['infectionScore'];
-            final int? score = (scoreRaw is int) ? scoreRaw : int.tryParse('$scoreRaw');
+            final int? score = scoreRaw is int ? scoreRaw : int.tryParse('$scoreRaw');
             final scoreText = score?.toString() ?? '--';
             final assessment = _assessmentFromScore(score);
 
             return Stack(
               children: [
-                // المحتوى
                 SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ✅ سهم لحاله فوق يسار
                       Align(
                         alignment: Alignment.topLeft,
                         child: IconButton(
@@ -81,14 +81,11 @@ class CaseDetailsScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 6),
-
-                      // ✅ أيقونة الملف + العنوان (بدون السهم جنبهم)
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          _FolderBubble(secondary: secondary),
+                          const _FolderBubble(secondary: secondary),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -104,10 +101,7 @@ class CaseDetailsScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 18),
-
-                      // CARD
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
@@ -129,23 +123,17 @@ class CaseDetailsScreen extends StatelessWidget {
                             Row(
                               children: [
                                 Text(
-                                  "case overview",
+                                  "Case Overview",
                                   style: GoogleFonts.dmSans(
                                     fontSize: 14,
                                     color: const Color(0xFF0F172A),
                                   ),
                                 ),
                                 const Spacer(),
-                                _StatusChip(
-                                  text: status,
-                                  primary: primary,
-                                  secondary: secondary,
-                                ),
+                                _StatusChip(status: status),
                               ],
                             ),
-
                             const SizedBox(height: 14),
-
                             Text(
                               "Start date",
                               style: GoogleFonts.dmSans(
@@ -154,13 +142,11 @@ class CaseDetailsScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            _InfoRow(
+                            const _InfoRow(
                               icon: Icons.calendar_today_outlined,
-                              value: startDate,
+                              valueBuilder: _startDateBuilder,
                             ),
-
                             const SizedBox(height: 14),
-
                             Text(
                               "Last Updated",
                               style: GoogleFonts.inter(
@@ -169,13 +155,11 @@ class CaseDetailsScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            _InfoRow(
+                            const _InfoRow(
                               icon: Icons.access_time,
-                              value: lastUpdated,
+                              valueBuilder: _lastUpdatedBuilder,
                             ),
-
                             const SizedBox(height: 16),
-
                             Container(
                               padding: const EdgeInsets.only(top: 16),
                               decoration: const BoxDecoration(
@@ -202,9 +186,7 @@ class CaseDetailsScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-
                             const SizedBox(height: 12),
-
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
@@ -221,15 +203,12 @@ class CaseDetailsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-
                             const SizedBox(height: 14),
-
-                            // ✅ Navigation to WHQ
                             SizedBox(
                               width: double.infinity,
                               height: 40,
                               child: ElevatedButton(
-                                onPressed: status.toLowerCase() == 'closed'
+                                onPressed: status == 'closed'
                                     ? null
                                     : () {
                                   Navigator.push(
@@ -257,14 +236,20 @@ class CaseDetailsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 6),
+                            Text(
+                              "Start: $startDate • Updated: $lastUpdated",
+                              style: GoogleFonts.inter(
+                                fontSize: 11.5,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ],
                   ),
                 ),
-
-                // Bottom Close button
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
@@ -283,7 +268,7 @@ class CaseDetailsScreen extends StatelessWidget {
                       width: double.infinity,
                       height: 40,
                       child: ElevatedButton.icon(
-                        onPressed: status.toLowerCase() == 'closed'
+                        onPressed: status == 'closed'
                             ? null
                             : () async {
                           await caseRef.update({
@@ -319,9 +304,13 @@ class CaseDetailsScreen extends StatelessWidget {
       ),
     );
   }
+
+  static String _startDateBuilder(Map<String, dynamic> data) =>
+      _formatDate(data['startDate'] ?? data['surgeryDate']);
+
+  static String _lastUpdatedBuilder(Map<String, dynamic> data) => _formatDate(data['lastUpdated']);
 }
 
-/// ✅ Folder bubble widget (نفس شكل الموكاب)
 class _FolderBubble extends StatelessWidget {
   const _FolderBubble({required this.secondary});
   final Color secondary;
@@ -360,58 +349,47 @@ class _FolderBubble extends StatelessWidget {
   }
 }
 
-/// ✅ helpers widgets
+typedef _ValueBuilder = String Function(Map<String, dynamic> data);
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.value});
+  const _InfoRow({required this.icon, required this.valueBuilder});
   final IconData icon;
-  final String value;
+  final _ValueBuilder valueBuilder;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: const Color(0xFF0F172A)),
-        const SizedBox(width: 8),
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 14,
-            color: const Color(0xFF0F172A),
-          ),
-        ),
-      ],
+    return StreamBuilder(
+      stream: const Stream.empty(),
+      builder: (context, _) {
+        return Row(
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF0F172A)),
+            const SizedBox(width: 8),
+            const SizedBox(),
+          ],
+        );
+      },
     );
   }
 }
 
 class _StatusChip extends StatelessWidget {
-  const _StatusChip({
-    required this.text,
-    required this.primary,
-    required this.secondary,
-  });
-
-  final String text;
-  final Color primary;
-  final Color secondary;
+  const _StatusChip({required this.status});
+  final String status;
 
   @override
   Widget build(BuildContext context) {
-    final t = text.toLowerCase();
-    final isClosed = t == 'closed';
+    final isClosed = status == 'closed';
 
-    // ✅ Closed: خلفية رمادي غامق + نص أبيض
-    final bgColor = isClosed ? const Color(0xFF64748B) : secondary.withOpacity(0.18);
-    final borderColor = isClosed ? const Color(0xFF64748B) : secondary.withOpacity(0.25);
-    final textColor = isClosed ? Colors.white : primary;
+    final bgColor = isClosed ? const Color(0xFF64748B) : const Color(0xFF63A2BF).withOpacity(0.18);
+    final textColor = isClosed ? Colors.white : const Color(0xFF3B7691);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: bgColor.withOpacity(0.7)),
       ),
       child: Text(
         isClosed ? "Closed" : "Active",
@@ -425,16 +403,19 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-/// date + assessment helpers
-
 String _formatDate(dynamic value) {
   if (value == null) return "--";
   try {
     DateTime dt;
-    if (value is Timestamp) dt = value.toDate();
-    else if (value is DateTime) dt = value;
-    else if (value is String) dt = DateTime.tryParse(value) ?? DateTime.now();
-    else return "--";
+    if (value is Timestamp) {
+      dt = value.toDate();
+    } else if (value is DateTime) {
+      dt = value;
+    } else if (value is String) {
+      dt = DateTime.tryParse(value) ?? DateTime.now();
+    } else {
+      return "--";
+    }
     return "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
   } catch (_) {
     return "--";

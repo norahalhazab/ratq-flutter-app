@@ -77,7 +77,6 @@ flutter:
 # ✅ Add this at the END of the file (same indentation level as flutter:)
 flutter_native_splash:
   color: "#D8E7EF"
-  image: assets/images/logoFirst.png
   android_12:
     color: "#D8E7EF"
     image: assets/images/logo123.png

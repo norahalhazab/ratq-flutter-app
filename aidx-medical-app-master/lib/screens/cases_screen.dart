@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/bottom_nav.dart';
 
 import 'create_case_screen.dart';
 import 'case_details_screen.dart';
@@ -347,7 +348,11 @@ class CasesScreen extends StatelessWidget {
       ),
 
       // Bottom nav (UI فقط)
-      bottomNavigationBar: _BottomNav(primary: primary),
+      bottomNavigationBar: const Padding(
+        padding: EdgeInsets.all(10),
+        child: AppBottomNav(currentIndex: 1),
+      ),
+
     );
   }
 }
