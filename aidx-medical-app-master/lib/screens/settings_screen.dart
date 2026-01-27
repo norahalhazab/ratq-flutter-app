@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'personal_information_screen.dart';
 import '../widgets/bottom_nav.dart';
-import 'Personal_Information_Screen.dart';
 import 'wearable_screen.dart'; // change to your smartwatch screen file
 import 'auth/login_screen.dart';
 

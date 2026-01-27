@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/bottom_nav.dart';
+import 'Homepage.dart';
 
 import 'create_case_screen.dart';
 import 'case_details_screen.dart';
@@ -56,7 +57,14 @@ class CasesScreen extends StatelessWidget {
                 children: [
                   _BackButtonChip(
                     primary: primary,
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const Homepage()),
+                            (route) => false,
+                      );
+                    },
+
                   ),
                   const Spacer(),
                   _PrimaryButton(

@@ -40,7 +40,7 @@ class _HomepageState extends State<Homepage> {
 
     return Scaffold(
       backgroundColor: bg,
-      bottomNavigationBar: AppBottomNav(currentIndex: 0),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 0),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
@@ -81,8 +81,8 @@ class _HomepageState extends State<Homepage> {
               ),
               const SizedBox(height: 14),
               Row(
-                children: const [
-                  Expanded(
+                children: [
+                  const Expanded(
                     child: _MetricCard(
                       label: "Temperature",
                       value: "---",
@@ -93,16 +93,12 @@ class _HomepageState extends State<Homepage> {
                       iconColor: Color(0xFFB45309),
                     ),
                   ),
-                  SizedBox(width: 14),
+                  const SizedBox(width: 14),
+
+                  // ✅ Infection score from selected case
                   Expanded(
-                    child: _MetricCard(
-                      label: "WHQ\nScore",
-                      value: "---",
-                      unit: "",
-                      badgeText: "Not synced",
-                      icon: Icons.show_chart,
-                      iconBg: Color(0xFFEFF6FF),
-                      iconColor: Color(0xFF1D4ED8),
+                    child: _SelectedCaseInfectionCard(
+                      selectedCaseId: _selectedCaseId,
                     ),
                   ),
                 ],
@@ -134,10 +130,13 @@ class _HomepageState extends State<Homepage> {
                     );
                   }
 
-                  // If selected is null or not found, pick first
+                  // If selected is null or not found, pick first (use addPostFrame to avoid setState in build)
                   final ids = docs.map((d) => d.id).toList();
                   if (_selectedCaseId == null || !ids.contains(_selectedCaseId)) {
-                    _selectedCaseId = ids.first;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      setState(() => _selectedCaseId = ids.first);
+                    });
                   }
 
                   final items = docs.map((d) {
@@ -148,7 +147,7 @@ class _HomepageState extends State<Homepage> {
 
                   return _CaseSelector(
                     enabled: true,
-                    selectedCaseId: _selectedCaseId,
+                    selectedCaseId: _selectedCaseId ?? ids.first,
                     items: items,
                     onChanged: (id) => setState(() => _selectedCaseId = id),
                     helperText: "Choose which case to show (sync later)",
@@ -158,18 +157,92 @@ class _HomepageState extends State<Homepage> {
 
               const SizedBox(height: 14),
 
-              // Spacer to keep content above bottom nav nicely
               const Spacer(),
 
-              // Optional: a subtle hint line
-              Text(
+              const Text(
                 "Smartwatch sync: coming soon (values will replace ---)",
-                style: const TextStyle(color: mutedText, fontSize: 12),
+                style: TextStyle(color: mutedText, fontSize: 12),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/* ---------------- Infection card (selected case) ---------------- */
+
+class _SelectedCaseInfectionCard extends StatelessWidget {
+  const _SelectedCaseInfectionCard({required this.selectedCaseId});
+  final String? selectedCaseId;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    // If no user or no selected case yet
+    if (user == null || selectedCaseId == null) {
+      return const _MetricCard(
+        label: "Infection\nScore",
+        value: "---",
+        unit: "",
+        badgeText: "Select a case",
+        icon: Icons.show_chart,
+        iconBg: Color(0xFFEFF6FF),
+        iconColor: Color(0xFF1D4ED8),
+      );
+    }
+
+    final caseDoc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('cases')
+        .doc(selectedCaseId);
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: caseDoc.snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return const _MetricCard(
+            label: "Infection\nScore",
+            value: "---",
+            unit: "",
+            badgeText: "Error",
+            icon: Icons.show_chart,
+            iconBg: Color(0xFFEFF6FF),
+            iconColor: Color(0xFF1D4ED8),
+          );
+        }
+
+        if (!snap.hasData || snap.data?.data() == null) {
+          return const _MetricCard(
+            label: "Infection\nScore",
+            value: "---",
+            unit: "",
+            badgeText: "Loading...",
+            icon: Icons.show_chart,
+            iconBg: Color(0xFFEFF6FF),
+            iconColor: Color(0xFF1D4ED8),
+          );
+        }
+
+        final data = snap.data!.data()!;
+
+        // ✅ Uses the same field you used in CaseDetailsScreen
+        final raw = data['infectionScore'];
+        final int? score = raw is int ? raw : int.tryParse('$raw');
+
+        return _MetricCard(
+          label: "Infection\nScore",
+          value: score?.toString() ?? "---",
+          unit: "",
+          badgeText: score == null ? "No data yet" : "From selected case",
+          icon: Icons.show_chart,
+          iconBg: const Color(0xFFEFF6FF),
+          iconColor: const Color(0xFF1D4ED8),
+        );
+      },
     );
   }
 }
@@ -182,9 +255,9 @@ class _PageTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
+    return const Text(
+      "Dashboard",
+      style: TextStyle(
         fontSize: 28,
         fontWeight: FontWeight.w800,
         color: Color(0xFF111827),

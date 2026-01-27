@@ -1,13 +1,9 @@
-// create_case_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// Update these imports to match your project paths
-import 'dashboard_screen.dart';
-import 'cases_screen.dart';
-import 'settings_screen.dart';
+import '../widgets/bottom_nav.dart';
 
 class CreateCaseScreen extends StatefulWidget {
   const CreateCaseScreen({super.key});
@@ -45,50 +41,25 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
     setState(() => _loading = true);
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('cases')
-        .add({
-      'title': 'Case ${DateTime.now().millisecondsSinceEpoch}',
-      'status': 'active',
-      'infectionScore': 0,
-      'surgeryDate': Timestamp.fromDate(_surgeryDate!),
-      'startDate': Timestamp.fromDate(_surgeryDate!),
-      'lastUpdated': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('cases')
+          .add({
+        'title': 'Case ${DateTime.now().millisecondsSinceEpoch}',
+        'status': 'active',
+        'infectionScore': 0,
+        'surgeryDate': Timestamp.fromDate(_surgeryDate!),
+        'startDate': Timestamp.fromDate(_surgeryDate!),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-    if (!mounted) return;
-    Navigator.pop(context);
-  }
-
-  void _onNavTap(int i) {
-    switch (i) {
-      case 0:
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
-              (route) => false,
-        );
-        break;
-      case 1:
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const CasesScreen()),
-              (route) => false,
-        );
-        break;
-      case 2:
-      // If you have Alerts, replace this later.
-        break;
-      case 3:
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              (route) => false,
-        );
-        break;
+      if (!mounted) return;
+      Navigator.pop(context);
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -101,10 +72,10 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
 
-      // ✅ Fixed bottom nav with real navigation
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(10),
-        child: _AppBottomNav(currentIndex: 1, onTap: _onNavTap),
+      // ✅ Your real bottom nav from lib/widgets/bottom_nav.dart
+      bottomNavigationBar: const Padding(
+        padding: EdgeInsets.all(10),
+        child: AppBottomNav(currentIndex: 1),
       ),
 
       body: SafeArea(
@@ -200,11 +171,32 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Expanded(child: _DateBox(text: dd, onTap: _pickDate, bg: inputBg, border: borderGrey)),
+                        Expanded(
+                          child: _DateBox(
+                            text: dd,
+                            onTap: _pickDate,
+                            bg: inputBg,
+                            border: borderGrey,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: _DateBox(text: mm, onTap: _pickDate, bg: inputBg, border: borderGrey)),
+                        Expanded(
+                          child: _DateBox(
+                            text: mm,
+                            onTap: _pickDate,
+                            bg: inputBg,
+                            border: borderGrey,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: _DateBox(text: yyyy, onTap: _pickDate, bg: inputBg, border: borderGrey)),
+                        Expanded(
+                          child: _DateBox(
+                            text: yyyy,
+                            onTap: _pickDate,
+                            bg: inputBg,
+                            border: borderGrey,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -362,113 +354,3 @@ class _DateBox extends StatelessWidget {
 }
 
 String _two(int n) => n.toString().padLeft(2, '0');
-
-class _AppBottomNav extends StatelessWidget {
-  const _AppBottomNav({
-    required this.currentIndex,
-    required this.onTap,
-  });
-
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-
-  static const primary = Color(0xFF3B7691);
-  static const muted = Color(0xFF475569);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 57,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: const Border(top: BorderSide(color: Color(0x26000000), width: 1)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _NavItem(
-            label: "Home",
-            icon: Icons.home_outlined,
-            selected: currentIndex == 0,
-            primary: primary,
-            muted: muted,
-            onTap: () => onTap(0),
-          ),
-          _NavItem(
-            label: "Cases",
-            icon: Icons.folder_outlined,
-            selected: currentIndex == 1,
-            primary: primary,
-            muted: muted,
-            onTap: () => onTap(1),
-          ),
-          _NavItem(
-            label: "Alerts",
-            icon: Icons.notifications_none,
-            selected: currentIndex == 2,
-            primary: primary,
-            muted: muted,
-            onTap: () => onTap(2),
-          ),
-          _NavItem(
-            label: "Settings",
-            icon: Icons.settings_outlined,
-            selected: currentIndex == 3,
-            primary: primary,
-            muted: muted,
-            onTap: () => onTap(3),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.primary,
-    required this.muted,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final Color primary;
-  final Color muted;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? primary : muted;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox(
-        width: 80,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 11.6,
-                fontWeight: FontWeight.w600,
-                color: color,
-                height: 16 / 11.6,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
