@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'upload_wound_image_screen.dart';
+
 
 // Optional: import your destination screens for bottom navigation.
 // import 'home_screen.dart';
@@ -23,6 +25,8 @@ class _WhqScreenState extends State<WhqScreen> {
   static const cardBg = Color(0xFFD8E7EF);
   static const primary = Color(0xFF3B7691);
   static const border = Color(0xFFC8D3DF);
+
+  bool _isNavigating = false;
 
   // Answer options
   static const likertOptions = ["Not at all", "A little bit", "Quite a bit", "A lot"];
@@ -164,35 +168,81 @@ class _WhqScreenState extends State<WhqScreen> {
                         Column(
                           children: options.map((opt) {
                             final selected = answers[q.id] == opt;
+
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 10),
                               child: InkWell(
-                                onTap: saving
+                                // 2. Logic Change: Check if we are already navigating
+                                onTap: (saving || _isNavigating)
                                     ? null
-                                    : () {
+                                    : () async {
+                                  // A. Update UI immediately to show the selection (Green/Blue/Border)
                                   setState(() {
                                     answers[q.id] = opt;
+                                    _isNavigating = true; // Lock input
                                   });
+
+                                  // B. Wait 250ms so the user SEES the selection
+                                  await Future.delayed(const Duration(milliseconds: 250));
+
+                                  if (!mounted) return;
+
+                                  // C. NOW advance to the next question
+                                  if (!isLast) {
+                                    setState(() {
+                                      index++;
+                                      _isNavigating = false; // Unlock for next question
+                                    });
+                                  } else {
+                                    await _submitAllAnswers(user.uid);
+                                    if (mounted) {
+                                      setState(() => _isNavigating = false);
+                                    }
+                                  }
                                 },
                                 borderRadius: BorderRadius.circular(10),
-                                child: Container(
+                                child: AnimatedContainer( // Optional: Use AnimatedContainer for smoother transition
+                                  duration: const Duration(milliseconds: 200),
                                   width: double.infinity,
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                   decoration: BoxDecoration(
+                                    // Highlight logic:
                                     color: selected ? Colors.white : Colors.transparent,
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: selected ? primary : border,
-                                      width: selected ? 1.4 : 1,
+                                      width: selected ? 2.0 : 1, // Make border thicker when selected
                                     ),
+                                    boxShadow: selected
+                                        ? [BoxShadow(color: primary.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))]
+                                        : [],
                                   ),
-                                  child: Text(
-                                    opt,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 13.5,
-                                      color: const Color(0xFF111827),
-                                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                                    ),
+                                  child: Row(
+                                    children: [
+                                      // Optional: Add a checkmark or radio circle for extra visibility
+                                      Container(
+                                        width: 18,
+                                        height: 18,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: selected ? primary : Colors.grey[400]!,
+                                            width: selected ? 5 : 1, // Fill effect
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          opt,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13.5,
+                                            color: const Color(0xFF111827),
+                                            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -225,8 +275,7 @@ class _WhqScreenState extends State<WhqScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Navigation buttons:
-                    // - Q1: Next only
-                    // - Q2..Q14: Previous + Next
+                    // - Q1..Q14: Previous only (auto-advance on tap)
                     // - Q15: Previous + Done
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -243,7 +292,9 @@ class _WhqScreenState extends State<WhqScreen> {
                               },
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: primary, width: 1.2),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
                               ),
                               child: Text(
                                 "Previous",
@@ -256,43 +307,40 @@ class _WhqScreenState extends State<WhqScreen> {
                             ),
                           ),
 
-                        if (!isFirst) const SizedBox(width: 12),
+                        if (!isFirst && isLast) const SizedBox(width: 12),
 
-                        SizedBox(
-                          width: 120,
-                          height: 44,
-                          child: OutlinedButton(
-                            onPressed: saving
-                                ? null
-                                : (!hasAnswer
-                                ? null
-                                : () async {
-                              if (!isLast) {
-                                setState(() => index++);
-                              } else {
+                        if (isLast)
+                          SizedBox(
+                            width: 120,
+                            height: 44,
+                            child: OutlinedButton(
+                              onPressed: (saving || !hasAnswer)
+                                  ? null
+                                  : () async {
                                 await _submitAllAnswers(user.uid);
-                              }
-                            }),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: primary, width: 1.2),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                            ),
-                            child: saving
-                                ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                                : Text(
-                              isLast ? "Done" : "Next",
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: primary,
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: primary, width: 1.2),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                              ),
+                              child: saving
+                                  ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                                  : Text(
+                                "Done",
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: primary,
+                                ),
                               ),
                             ),
                           ),
-                        ),
                       ],
                     ),
 
@@ -325,6 +373,7 @@ class _WhqScreenState extends State<WhqScreen> {
                 ),
               ),
             ),
+
           ],
         ),
       ),
@@ -337,6 +386,7 @@ class _WhqScreenState extends State<WhqScreen> {
 
     final now = DateTime.now();
     final dayId = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final submissionId = now.millisecondsSinceEpoch.toString();
 
     final responsesRef = FirebaseFirestore.instance
         .collection('users')
@@ -344,7 +394,8 @@ class _WhqScreenState extends State<WhqScreen> {
         .collection('cases')
         .doc(widget.caseId)
         .collection('whqResponses')
-        .doc(dayId);
+        .doc(submissionId);
+
 
     final int whqScore = _computeScore(answers);
 
@@ -375,7 +426,15 @@ class _WhqScreenState extends State<WhqScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Questionnaire saved successfully")),
     );
-    Navigator.pop(context);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UploadWoundImageScreen(
+          caseId: widget.caseId,
+          whqResponseId: submissionId, // NEW
+        ),
+      ),
+    );
   }
 
   // Converts selected answers into a simple numeric score.
