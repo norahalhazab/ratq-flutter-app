@@ -1,12 +1,14 @@
 import 'dart:io';
+import 'dart:convert'; // Required for JSON decoding
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// Note: We don't need firebase_storage import anymore for this solution
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
+import 'package:http/http.dart' as http; // Required for Cloudinary upload
 import 'upload_success_screen.dart';
+import '../widgets/bottom_nav.dart';
 
 class UploadWoundImageScreen extends StatefulWidget {
   const UploadWoundImageScreen({
@@ -19,7 +21,6 @@ class UploadWoundImageScreen extends StatefulWidget {
   final String caseId;
 
   /// /users/{uid}/cases/{caseId}/whqResponses/{whqResponseId}
-  /// This should be UNIQUE per WHQ submission (e.g., millisecondsSinceEpoch).
   final String whqResponseId;
 
   @override
@@ -31,12 +32,13 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
 
   File? _selectedImage;
   bool _uploading = false;
-  double _progress = 0;
+  // Cloudinary HTTP upload doesn't give granular progress easily, so we use a simple loading state.
+  // If you need a progress bar, you'd need a more advanced HTTP client like 'dio'.
 
   static const Color _primary = Color(0xFF3B7691);
   static const Color _dark = Color(0xFF0F1729);
   static const Color _cardBorder = Color(0xFFC9DFE9);
-  static const Color _uploadBg = Color(0x6663A2BF); // #63a2bf40
+  static const Color _uploadBg = Color(0x6663A2BF);
 
   static const List<String> _photoGuidelines = [
     "Use good lighting",
@@ -47,7 +49,7 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
   Future<void> _pickFromGallery() async {
     final XFile? x = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85,
+      imageQuality: 85, // Cloudinary handles large images well, so 85 is fine
     );
     if (x == null) return;
     setState(() => _selectedImage = File(x.path));
@@ -63,12 +65,11 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
     setState(() => _selectedImage = File(x.path));
   }
 
-  Future<void> _uploadToFirebase({required String source}) async {
+  /// Uploads image to Cloudinary (Free, No Credit Card, Works in KSA)
+  Future<void> _uploadToCloudinary({required String source}) async {
     final file = _selectedImage;
     if (file == null) return;
 
-    // --- TEMPORARY BYPASS: Comment out Auth check if needed for testing UI only ---
-    /*
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,51 +77,73 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
       );
       return;
     }
-    */
 
-    setState(() {
-      _uploading = true;
-      _progress = 0;
-    });
+    setState(() => _uploading = true);
 
     try {
-      // --- SIMULATION START ---
-      // We simulate a network delay instead of actual uploading
-      for (int i = 1; i <= 10; i++) {
-        await Future.delayed(const Duration(milliseconds: 100));
-        if (mounted) {
-          setState(() => _progress = i / 10);
-        }
+      // ---------------------------------------------------------
+      // TODO: PASTE YOUR CLOUDINARY DETAILS HERE
+      // ---------------------------------------------------------
+      const cloudName = "dnrlhiq75"; // e.g., "dxy85..."
+      const uploadPreset = "wound_app_preset"; // e.g., "wound_app" (Make sure it is Unsigned)
+      // ---------------------------------------------------------
+
+      final url = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
+
+      // Create the Multipart Request
+      final request = http.MultipartRequest('POST', url)
+        ..fields['upload_preset'] = uploadPreset
+        ..files.add(await http.MultipartFile.fromPath('file', file.path));
+
+      // Send Request
+      final response = await request.send();
+
+      if (response.statusCode == 200) {
+        // Parse Response
+        final responseData = await response.stream.toBytes();
+        final responseString = String.fromCharCodes(responseData);
+        final jsonMap = jsonDecode(responseString);
+
+        // Get the secure URL from Cloudinary
+        final String downloadUrl = jsonMap['secure_url'];
+
+        // Save URL to Firestore
+        final uid = user.uid;
+        final whqDocRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('cases')
+            .doc(widget.caseId)
+            .collection('whqResponses')
+            .doc(widget.whqResponseId);
+
+        await whqDocRef.set({
+          "image": {
+            "url": downloadUrl,
+            "date": FieldValue.serverTimestamp(),
+            "erythema": null, // Will be calculated later
+            "exudate": null,  // Will be calculated later
+            "source": source,
+          },
+          "lastUpdated": FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        if (!mounted) return;
+
+        // Navigate to Success Screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const UploadSuccessScreen(),
+          ),
+        );
+      } else {
+        // Handle Error
+        final responseData = await response.stream.toBytes();
+        final responseString = String.fromCharCodes(responseData);
+        throw("Cloudinary Error: ${response.statusCode} - $responseString");
       }
 
-      // --- COMMENTED OUT ACTUAL FIREBASE LOGIC ---
-      /*
-      final uid = user.uid;
-      final ext = p.extension(file.path).toLowerCase();
-      final safeExt = (ext == '.png') ? '.png' : '.jpg';
-
-      final storagePath = "wounds/$uid/${widget.caseId}/${widget.whqResponseId}$safeExt";
-      final ref = FirebaseStorage.instance.ref(storagePath);
-      // ... metadata setup ...
-      final uploadTask = ref.putFile(file, metadata);
-      // ... listen to events ...
-      await uploadTask;
-      final url = await snap.ref.getDownloadURL();
-
-      // ... Firestore write ...
-      await whqDocRef.set({...}, SetOptions(merge: true));
-      */
-      // --- SIMULATION END ---
-
-      if (!mounted) return;
-
-      // Navigate to the Success Screen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const UploadSuccessScreen(),
-        ),
-      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -135,7 +158,7 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      bottomNavigationBar: const _BottomNav(),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
       body: SafeArea(
         child: Stack(
           children: [
@@ -147,21 +170,17 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Row(
-                      // 1. Change this from center to start
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         IconButton(
-                          // Remove default padding constraints to align it perfectly to the top-left if needed,
-                          // or keep as is.
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: _dark),
                           onPressed: () => Navigator.pop(context),
                         ),
-                        const SizedBox(width: 12), // Increased width slightly for better spacing
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Padding(
-                            // 2. Add top padding here to push the text down relative to the arrow
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,7 +215,6 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                   ),
 
                   const SizedBox(height: 18),
-
 
                   // Upload area
                   Container(
@@ -312,7 +330,7 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                                   child: ElevatedButton(
                                     onPressed: _uploading
                                         ? null
-                                        : () => _uploadToFirebase(source: "camera_or_gallery"),
+                                        : () => _uploadToCloudinary(source: "camera_or_gallery"),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: _primary,
                                       foregroundColor: Colors.white,
@@ -322,14 +340,14 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                                     child: _uploading
                                         ? Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const SizedBox(
+                                      children: const [
+                                        SizedBox(
                                           width: 18,
                                           height: 18,
-                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                         ),
-                                        const SizedBox(width: 10),
-                                        Text("Uploading… ${(100 * _progress).toStringAsFixed(0)}%"),
+                                        SizedBox(width: 10),
+                                        Text("Uploading..."),
                                       ],
                                     )
                                         : const Text("Start analysis"),
@@ -388,9 +406,6 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                 ],
               ),
             ),
-
-            // Back button
-
           ],
         ),
       ),
@@ -398,77 +413,5 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
   }
 }
 
-class _BottomNav extends StatelessWidget {
-  const _BottomNav();
 
-  static const Color primary = Color(0xFF3B7691);
-  static const Color muted = Color(0xFF475569);
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 57,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: const Border(top: BorderSide(color: Color(0x26000000), width: 1)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: const [
-          _NavItem(label: "Home", icon: Icons.home_outlined, selected: true),
-          _NavItem(label: "Cases", icon: Icons.folder_outlined, selected: false),
-          _NavItem(label: "Alerts", icon: Icons.notifications_none, selected: false),
-          _NavItem(label: "Settings", icon: Icons.settings_outlined, selected: false),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.label,
-    required this.icon,
-    required this.selected,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-
-  static const Color primary = Color(0xFF3B7691);
-  static const Color muted = Color(0xFF475569);
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? primary : muted;
-
-    return InkWell(
-      onTap: () {
-        // TODO: connect to your existing navigation
-      },
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox(
-        width: 80,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                fontFamily: "Inter",
-                fontSize: 11.6,
-                fontWeight: FontWeight.w600,
-                height: 16 / 11.6,
-              ).copyWith(color: color),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

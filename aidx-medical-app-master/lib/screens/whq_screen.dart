@@ -328,19 +328,32 @@ class _WhqScreenState extends State<WhqScreen> {
         .collection('whqResponses')
         .doc(submissionId);
 
-    final int whqScore = _computeScore(answers);
+    final int questionnaireScore = _computeScore(answers);
 
+    // ✅ UPDATED STRUCTURE
     await responsesRef.set({
       "caseId": widget.caseId,
-      "dateId": dayId,
       "createdAt": FieldValue.serverTimestamp(),
       "updatedAt": FieldValue.serverTimestamp(),
-      "score": whqScore,
-      "answers": answers,
-      "version": 1,
+
+      // 1. Final Score (Calculated later, init as null)
+      "finalScore": null,
+
+      // 2. User Response Object
+      "userResponse": {
+        "answers": answers,
+        "questionnaireScore": questionnaireScore,
+        "dateId": dayId,
+        "version": 1,
+      },
+
+      // 3. Initialize other objects as null/empty for now
+      "image": null,
+      "vitals": null,
+
     }, SetOptions(merge: true));
 
-    // ✅ This field is what Homepage reads for WHQ score (case-level)
+    // Update the Case summary (Keep this as is)
     await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
@@ -348,16 +361,12 @@ class _WhqScreenState extends State<WhqScreen> {
         .doc(widget.caseId)
         .set({
       "lastWhqAt": FieldValue.serverTimestamp(),
-      "lastWhqScore": whqScore,
+      "lastWhqScore": questionnaireScore, // Or update this logic if needed later
       "lastUpdated": FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
     if (!mounted) return;
     setState(() => saving = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Questionnaire saved successfully")),
-    );
 
     Navigator.pushReplacement(
       context,
