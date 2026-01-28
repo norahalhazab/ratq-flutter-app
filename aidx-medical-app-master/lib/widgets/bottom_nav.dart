@@ -6,6 +6,7 @@ import '../screens/cases_screen.dart';
 import '../screens/settings_screen.dart';
 // import '../screens/alerts_screen.dart'; // if you have it
 import '../screens/Homepage.dart';
+import '../screens/alerts_screen.dart';
 
 class AppBottomNav extends StatelessWidget {
   const AppBottomNav({
@@ -30,9 +31,9 @@ class AppBottomNav extends StatelessWidget {
         screen = const CasesScreen();
         break;
       case 2:
-      // screen = const AlertsScreen();
-        screen = const _AlertsPlaceholder();
+        screen = const AlertsScreen();
         break;
+
       case 3:
         screen = const SettingsScreen();
         break;
