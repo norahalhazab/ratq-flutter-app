@@ -55,8 +55,13 @@ class CaseDetailsScreen extends StatelessWidget {
             final title = (data['title'] as String?) ?? 'Case';
             final status = ((data['status'] as String?) ?? 'active').toLowerCase();
 
-            final startDate = _formatDate(data['startDate'] ?? data['surgeryDate']);
-            final lastUpdated = _formatDate(data['lastUpdated']);
+            // ✅ Start = createdAt (best) then startDate then surgeryDate
+            final startValue = data['createdAt'] ?? data['startDate'] ?? data['surgeryDate'];
+            final startDateText = _formatDateTime(startValue);
+
+            // ✅ Last Updated = lastUpdated then createdAt fallback
+            final lastValue = data['lastUpdated'] ?? data['createdAt'];
+            final lastUpdatedText = _formatDateTime(lastValue);
 
             final scoreRaw = data['infectionScore'];
             final int? score = scoreRaw is int ? scoreRaw : int.tryParse('$scoreRaw');
@@ -82,6 +87,7 @@ class CaseDetailsScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
+
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -101,7 +107,9 @@ class CaseDetailsScreen extends StatelessWidget {
                           ),
                         ],
                       ),
+
                       const SizedBox(height: 18),
+
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
@@ -133,7 +141,9 @@ class CaseDetailsScreen extends StatelessWidget {
                                 _StatusChip(status: status),
                               ],
                             ),
+
                             const SizedBox(height: 14),
+
                             Text(
                               "Start date",
                               style: GoogleFonts.dmSans(
@@ -142,11 +152,15 @@ class CaseDetailsScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const _InfoRow(
+
+                            // ✅ FIXED: show text
+                            _InfoRow(
                               icon: Icons.calendar_today_outlined,
-                              valueBuilder: _startDateBuilder,
+                              value: startDateText,
                             ),
+
                             const SizedBox(height: 14),
+
                             Text(
                               "Last Updated",
                               style: GoogleFonts.inter(
@@ -155,11 +169,15 @@ class CaseDetailsScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const _InfoRow(
+
+                            // ✅ FIXED: show text
+                            _InfoRow(
                               icon: Icons.access_time,
-                              valueBuilder: _lastUpdatedBuilder,
+                              value: lastUpdatedText,
                             ),
+
                             const SizedBox(height: 16),
+
                             Container(
                               padding: const EdgeInsets.only(top: 16),
                               decoration: const BoxDecoration(
@@ -186,7 +204,9 @@ class CaseDetailsScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
+
                             const SizedBox(height: 12),
+
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
@@ -203,7 +223,9 @@ class CaseDetailsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
+
                             const SizedBox(height: 14),
+
                             SizedBox(
                               width: double.infinity,
                               height: 40,
@@ -236,9 +258,11 @@ class CaseDetailsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
+
                             const SizedBox(height: 6),
+
                             Text(
-                              "Start: $startDate • Updated: $lastUpdated",
+                              "Start: $startDateText • Updated: $lastUpdatedText",
                               style: GoogleFonts.inter(
                                 fontSize: 11.5,
                                 color: const Color(0xFF64748B),
@@ -250,6 +274,7 @@ class CaseDetailsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
@@ -304,11 +329,6 @@ class CaseDetailsScreen extends StatelessWidget {
       ),
     );
   }
-
-  static String _startDateBuilder(Map<String, dynamic> data) =>
-      _formatDate(data['startDate'] ?? data['surgeryDate']);
-
-  static String _lastUpdatedBuilder(Map<String, dynamic> data) => _formatDate(data['lastUpdated']);
 }
 
 class _FolderBubble extends StatelessWidget {
@@ -349,26 +369,32 @@ class _FolderBubble extends StatelessWidget {
   }
 }
 
-typedef _ValueBuilder = String Function(Map<String, dynamic> data);
-
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.valueBuilder});
+  const _InfoRow({
+    required this.icon,
+    required this.value,
+  });
+
   final IconData icon;
-  final _ValueBuilder valueBuilder;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder(
-      stream: const Stream.empty(),
-      builder: (context, _) {
-        return Row(
-          children: [
-            Icon(icon, size: 16, color: const Color(0xFF0F172A)),
-            const SizedBox(width: 8),
-            const SizedBox(),
-          ],
-        );
-      },
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFF0F172A)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 12.8,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -381,7 +407,10 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final isClosed = status == 'closed';
 
-    final bgColor = isClosed ? const Color(0xFF64748B) : const Color(0xFF63A2BF).withOpacity(0.18);
+    final bgColor = isClosed
+        ? const Color(0xFF64748B)
+        : const Color(0xFF63A2BF).withOpacity(0.18);
+
     final textColor = isClosed ? Colors.white : const Color(0xFF3B7691);
 
     return Container(
@@ -403,10 +432,11 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-String _formatDate(dynamic value) {
+String _formatDateTime(dynamic value) {
   if (value == null) return "--";
   try {
     DateTime dt;
+
     if (value is Timestamp) {
       dt = value.toDate();
     } else if (value is DateTime) {
@@ -416,7 +446,14 @@ String _formatDate(dynamic value) {
     } else {
       return "--";
     }
-    return "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+
+    final yyyy = dt.year.toString();
+    final mm = dt.month.toString().padLeft(2, '0');
+    final dd = dt.day.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+
+    return "$yyyy-$mm-$dd  $hh:$min";
   } catch (_) {
     return "--";
   }
