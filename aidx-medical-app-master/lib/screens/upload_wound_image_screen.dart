@@ -66,94 +66,116 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
   }
 
   /// Uploads image to Cloudinary (Free, No Credit Card, Works in KSA)
+
   Future<void> _uploadToCloudinary({required String source}) async {
     final file = _selectedImage;
     if (file == null) return;
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You must be logged in to upload.")),
-      );
-      return;
-    }
+    if (user == null) return;
 
     setState(() => _uploading = true);
 
     try {
-      // ---------------------------------------------------------
-      // TODO: PASTE YOUR CLOUDINARY DETAILS HERE
-      // ---------------------------------------------------------
-      const cloudName = "dnrlhiq75"; // e.g., "dxy85..."
-      const uploadPreset = "wound_app_preset"; // e.g., "wound_app" (Make sure it is Unsigned)
-      // ---------------------------------------------------------
+      // 1. UPLOAD TO CLOUDINARY
+      const cloudName = "dnrlhiq75";
+      const uploadPreset = "wound_app_preset";
 
       final url = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
-
-      // Create the Multipart Request
       final request = http.MultipartRequest('POST', url)
         ..fields['upload_preset'] = uploadPreset
         ..files.add(await http.MultipartFile.fromPath('file', file.path));
 
-      // Send Request
       final response = await request.send();
 
-      if (response.statusCode == 200) {
-        // Parse Response
-        final responseData = await response.stream.toBytes();
-        final responseString = String.fromCharCodes(responseData);
-        final jsonMap = jsonDecode(responseString);
+      if (response.statusCode != 200) throw("Image upload failed. Please try again.");
 
-        // Get the secure URL from Cloudinary
-        final String downloadUrl = jsonMap['secure_url'];
+      final responseData = await response.stream.toBytes();
+      final responseString = String.fromCharCodes(responseData);
+      final jsonMap = jsonDecode(responseString);
+      final String downloadUrl = jsonMap['secure_url'];
 
-        // Save URL to Firestore
-        final uid = user.uid;
-        final whqDocRef = FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('cases')
-            .doc(widget.caseId)
-            .collection('whqResponses')
-            .doc(widget.whqResponseId);
+      // -----------------------------------------------------
+      // 2. CALL AI MODEL (STRICT MODE)
+      // -----------------------------------------------------
+      int? detectedErythema;
+      String? detectedExudate;
 
-        await whqDocRef.set({
-          "image": {
-            "url": downloadUrl,
-            "date": FieldValue.serverTimestamp(),
-            "erythema": null, // Will be calculated later
-            "exudate": null,  // Will be calculated later
-            "source": source,
-          },
-          "lastUpdated": FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+      // Replace with your Render URL
+      final aiUrl = Uri.parse('https://laura-potato-ratq-ai.hf.space/analyze');
 
-        if (!mounted) return;
+      print("Sending to AI..."); // Debug log
 
-        // Navigate to Success Screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const UploadSuccessScreen(),
-          ),
-        );
+      final aiResponse = await http.post(
+        aiUrl,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"imageUrl": downloadUrl}),
+      ).timeout(const Duration(seconds: 90));
+
+      if (aiResponse.statusCode == 200) {
+        final aiData = jsonDecode(aiResponse.body);
+        print("AI Success: $aiData");
+
+        detectedErythema = aiData['erythema'];
+        detectedExudate = aiData['exudate'];
+
+        // CRITICAL CHECK: If AI returned null/error, STOP here.
+        if (detectedErythema == null && detectedExudate == null) {
+          throw("AI analysis returned empty results.");
+        }
+
       } else {
-        // Handle Error
-        final responseData = await response.stream.toBytes();
-        final responseString = String.fromCharCodes(responseData);
-        throw("Cloudinary Error: ${response.statusCode} - $responseString");
+        // If server error (500) or not found (404), STOP.
+        throw("AI Server Error: ${aiResponse.statusCode}");
       }
 
-    } catch (e) {
+      // -----------------------------------------------------
+      // 3. SAVE TO FIRESTORE (Only runs if AI succeeded)
+      // -----------------------------------------------------
+      final uid = user.uid;
+      final whqDocRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('cases')
+          .doc(widget.caseId)
+          .collection('whqResponses')
+          .doc(widget.whqResponseId);
+
+      await whqDocRef.set({
+        "image": {
+          "url": downloadUrl,
+          "date": FieldValue.serverTimestamp(),
+          "erythema": detectedErythema,
+          "exudate": detectedExudate,
+          "source": source,
+        },
+        "lastUpdated": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
       if (!mounted) return;
+
+      // Navigate ONLY after successful save
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const UploadSuccessScreen()),
+      );
+
+    } catch (e) {
+      print("Upload Error: $e");
+      if (!mounted) return;
+
+      // Show error to user
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Upload failed: $e")),
+        SnackBar(
+          content: Text("Analysis Failed: $e"),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
       );
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
