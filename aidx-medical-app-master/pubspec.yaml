@@ -58,6 +58,7 @@ dependencies:
   audio_session: ^0.1.16
   google_generative_ai: ^0.2.2
   html: ^0.15.4
+  sign_in_with_apple: ^6.1.0
 
 
 dev_dependencies:

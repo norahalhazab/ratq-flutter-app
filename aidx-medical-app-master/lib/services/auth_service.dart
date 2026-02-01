@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:aidx/services/database_init.dart';
 import 'package:aidx/services/premium_service.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+
 
 class AuthService with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -246,7 +248,43 @@ class AuthService with ChangeNotifier {
       rethrow;
     }
   }
-  
+
+  Future<User?> signInWithApple() async {
+    try {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final oauthCredential = OAuthProvider("apple.com").credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      final userCredential = await _auth.signInWithCredential(oauthCredential);
+      final user = userCredential.user;
+
+      if (user != null) {
+        await _databaseService.createUserProfile(user.uid, {
+          'name': user.displayName ?? 'Apple User',
+          'email': user.email ?? '',
+          'photo': user.photoURL ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+          'loginMethod': 'apple',
+          'isVerified': user.emailVerified,
+        });
+        await PremiumService.syncSubscriptionStatus(user.uid);
+        notifyListeners();
+      }
+      return user;
+    } catch (e) {
+      throw Exception(_getReadableAuthError(e));
+    }
+  }
+
   // Sign out
   Future<void> signOut() async {
     try {

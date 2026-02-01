@@ -90,7 +90,7 @@ class AlertsScreen extends StatelessWidget {
       // Bottom nav like screenshot
       bottomNavigationBar: const Padding(
         padding: EdgeInsets.all(10),
-        child: AppBottomNav(currentIndex: 2), // Alerts tab highlighted
+        child: AppBottomNav(currentIndex: 3), // Alerts tab highlighted
       ),
     );
   }

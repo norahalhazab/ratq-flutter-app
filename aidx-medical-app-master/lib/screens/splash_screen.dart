@@ -1,6 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:aidx/utils/constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'package:aidx/screens/Homepage.dart';
+import 'package:aidx/screens/auth/onboarding_screen.dart';
+import 'package:aidx/screens/auth/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,17 +17,59 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   static const Color bgColor = Color(0xFF63A2BF);
 
+  /// 🔧 DEVELOPMENT MODE
+  /// true  = onboarding يظهر كل مرة
+  /// false = onboarding يظهر مرة واحدة فقط
+  static const bool kForceOnboardingForDev = true;
+
   @override
   void initState() {
     super.initState();
+    _handleNavigation();
+  }
 
+  Future<void> _handleNavigation() async {
     // مدة السبلاتش
-    Timer(const Duration(seconds: 2), () {
-      if (!mounted) return;
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
 
-      // يروح للّوجن (عندك route جاهز)
-      Navigator.pushReplacementNamed(context, AppConstants.routeLogin);
-    });
+    final prefs = await SharedPreferences.getInstance();
+
+    // 🔧 DEV MODE: show onboarding every app launch
+    if (kForceOnboardingForDev) {
+      await prefs.remove('seen_onboarding');
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      );
+      return;
+    }
+
+    // ✅ NORMAL MODE
+    final seenOnboarding = prefs.getBool('seen_onboarding') ?? false;
+
+    if (!seenOnboarding) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      );
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const Homepage()),
+      );
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
   }
 
   @override

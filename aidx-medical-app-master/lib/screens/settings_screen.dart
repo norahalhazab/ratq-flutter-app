@@ -1,24 +1,26 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'personal_information_screen.dart';
-import '../widgets/bottom_nav.dart';
-import 'wearable_screen.dart'; // change to your smartwatch screen file
+import 'wearable_screen.dart';
 import 'auth/login_screen.dart';
+import '../widgets/bottom_nav.dart';
 
-
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
-  static const bg = Color(0xFFFFFFFF);
-  static const primary = Color(0xFF3B7691);
-  static const cardBg = Color(0xFFF8FAFC);
-  static const border = Color(0xFFC8D3DF);
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
 
-  Future<void> _logout(BuildContext context) async {
+class _SettingsScreenState extends State<SettingsScreen> {
+  static const Color primary = Color(0xFF3B7691);
+
+  Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
-
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     Navigator.pushAndRemoveUntil(
       context,
@@ -27,97 +29,169 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  void _comingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Coming soon")),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: const Color(0xFFF6F7FB),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 90),
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 96),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Settings",
-                style: GoogleFonts.dmSans(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                "Manage your account and preferences",
-                style: GoogleFonts.inter(
-                  fontSize: 13.5,
-                  color: const Color(0xFF475569),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              _SectionCard(
-                title: "Account Settings",
+              // Top bar
+              Row(
                 children: [
-                  _SettingsTile(
-                    icon: Icons.person_outline,
-                    title: "User Profile",
-                    subtitle: "Manage your personal information",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const PersonalInformationScreen()),
-                      );
-
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _SettingsTile(
-                    icon: Icons.watch_outlined,
-                    title: "Smartwatch Pairing",
-                    subtitle: "Connect or manage your smartwatch",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const WearableScreen()),
-                      );
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              _SectionCard(
-                title: "App Information",
-                children: [
-                  _InfoRow(label: "Version", value: "1.0.0"),
-                  const SizedBox(height: 10),
-                  _InfoRow(label: "Language", value: "English"),
-                ],
-              ),
-
-              const SizedBox(height: 18),
-
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: () => _logout(context),
-                  icon: const Icon(Icons.logout, color: Colors.white),
-                  label: Text(
-                    "Logout",
+                  _TopBackButton(onTap: () => Navigator.pop(context)),
+                  const Spacer(),
+                  Text(
+                    "Settings",
                     style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      fontSize: 16.5,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
                     ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFB31217),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const Spacer(),
+                  const SizedBox(width: 44),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+
+              // Profile card
+              _GlassCard(
+                radius: 16,
+                padding: const EdgeInsets.all(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PersonalInformationScreen()),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: primary.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.person_rounded, color: primary.withOpacity(0.9)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "User",
+                              style: GoogleFonts.inter(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              "Tap to view profile",
+                              style: GoogleFonts.inter(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // ✅ Better spacing for "Other settings"
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 8),
+                child: Text(
+                  "Other settings",
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+
+              _GlassCard(
+                radius: 18,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Column(
+                  children: [
+                    _SettingRow(
+                      icon: Icons.person_outline_rounded,
+                      title: "Profile details",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PersonalInformationScreen()),
+                        );
+                      },
                     ),
-                    elevation: 0,
+                    const _DividerLine(),
+
+                    _SettingRow(
+                      icon: Icons.notifications_none_rounded,
+                      title: "Notifications",
+                      onTap: _comingSoon,
+                    ),
+                    const _DividerLine(),
+
+                    _SettingRow(
+                      icon: Icons.watch_outlined,
+                      title: "Smartwatch pairing",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const WearableScreen()),
+                        );
+                      },
+                    ),
+                    const _DividerLine(),
+
+                    // ✅ Logout with arrow like others
+                    _SettingRow(
+                      icon: Icons.logout_rounded,
+                      title: "Logout",
+                      danger: true,
+                      onTap: _logout,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              Center(
+                child: Text(
+                  "Ratq • Wound Monitoring App\nVersion 1.0 • English",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF94A3B8),
+                    height: 1.35,
                   ),
                 ),
               ),
@@ -127,117 +201,117 @@ class SettingsScreen extends StatelessWidget {
       ),
       bottomNavigationBar: const Padding(
         padding: EdgeInsets.all(10),
-        child: AppBottomNav(currentIndex: 3),
+        child: AppBottomNav(currentIndex: 4),
       ),
     );
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.title,
-    required this.children,
-  });
+/* ---------------- components ---------------- */
 
-  final String title;
-  final List<Widget> children;
-
-  static const cardBg = Color(0xFFF8FAFC);
-  static const border = Color(0xFFC8D3DF);
+class _TopBackButton extends StatelessWidget {
+  const _TopBackButton({required this.onTap});
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: border.withOpacity(0.6)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.dmSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF0F172A),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.70),
+              border: Border.all(color: Colors.white.withOpacity(0.75)),
+              borderRadius: BorderRadius.circular(14),
             ),
+            child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF0F172A)),
           ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
+        ),
       ),
     );
   }
 }
 
-class _SettingsTile extends StatelessWidget {
-  const _SettingsTile({
+class _GlassCard extends StatelessWidget {
+  const _GlassCard({
+    required this.child,
+    this.padding = const EdgeInsets.all(14),
+    this.radius = 18,
+  });
+
+  final Widget child;
+  final EdgeInsets padding;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            color: Colors.white.withOpacity(0.72),
+            border: Border.all(color: Colors.white.withOpacity(0.75)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 18,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
     required this.icon,
     required this.title,
-    required this.subtitle,
     required this.onTap,
+    this.danger = false,
   });
 
   final IconData icon;
   final String title;
-  final String subtitle;
   final VoidCallback onTap;
-
-  static const primary = Color(0xFF3B7691);
-  static const border = Color(0xFFC8D3DF);
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
+    final color = danger ? const Color(0xFFDC2626) : const Color(0xFF0F172A);
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: border.withOpacity(0.6)),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: primary.withOpacity(0.10),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: primary),
-            ),
-            const SizedBox(width: 12),
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 10),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF0F172A),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                      fontSize: 12.5,
-                      color: const Color(0xFF3B7691),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+              child: Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
             ),
-            const Icon(Icons.chevron_right, color: Color(0xFF94A3B8)),
+            Icon(Icons.chevron_right_rounded, color: danger ? color.withOpacity(0.9) : const Color(0xFF94A3B8)),
           ],
         ),
       ),
@@ -245,35 +319,15 @@ class _SettingsTile extends StatelessWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
+class _DividerLine extends StatelessWidget {
+  const _DividerLine();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: const Color(0xFF475569),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            color: const Color(0xFF0F172A),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      color: const Color(0x11000000),
     );
   }
 }

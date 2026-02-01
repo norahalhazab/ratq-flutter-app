@@ -21,6 +21,11 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
   static const lightGrey = Color(0x80D9D9D9); // #d9d9d980
   static const borderGrey = Color(0xFFD9D9D9);
 
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -28,16 +33,20 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
       lastDate: DateTime.now(),
       initialDate: _surgeryDate ?? DateTime.now(),
     );
-    if (picked != null) {
-      setState(() => _surgeryDate = picked);
-    }
+    if (picked != null) setState(() => _surgeryDate = picked);
   }
 
   Future<void> _createCase() async {
-    if (_surgeryDate == null) return;
+    if (_surgeryDate == null) {
+      _toast("Please select surgery date");
+      return;
+    }
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      _toast("You are not logged in");
+      return;
+    }
 
     setState(() => _loading = true);
 
@@ -57,7 +66,11 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
       });
 
       if (!mounted) return;
-      Navigator.pop(context);
+      _toast("Case created ✅");
+      // stay here or navigate back to Cases tab:
+      // Navigator.pop(context);
+    } catch (e) {
+      _toast(e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -72,10 +85,10 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
 
-      // ✅ Your real bottom nav from lib/widgets/bottom_nav.dart
+      // ✅ keep bottom nav visible + highlight "New"
       bottomNavigationBar: const Padding(
         padding: EdgeInsets.all(10),
-        child: AppBottomNav(currentIndex: 1),
+        child: AppBottomNav(currentIndex: 2),
       ),
 
       body: SafeArea(
@@ -84,14 +97,12 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Top bar (NO back button if you want it like a tab)
               SizedBox(
                 height: 48,
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-                    ),
+                    const SizedBox(width: 48), // keep title centered
                     const Spacer(),
                     Text(
                       "Create Case",
@@ -255,54 +266,30 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 110,
-                      height: 48,
-                      child: OutlinedButton(
-                        onPressed: _loading ? null : () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: primary, width: 1),
-                          shape: const StadiumBorder(),
-                        ),
-                        child: Text(
-                          "Cancel",
-                          style: GoogleFonts.syne(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: primary,
-                          ),
-                        ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: _loading ? null : _createCase,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: primary, width: 1),
+                      shape: const StadiumBorder(),
+                    ),
+                    child: _loading
+                        ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                        : Text(
+                      "Create Case",
+                      style: GoogleFonts.syne(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: primary,
                       ),
                     ),
-                    const Spacer(),
-                    SizedBox(
-                      width: 140,
-                      height: 48,
-                      child: OutlinedButton(
-                        onPressed: _loading ? null : _createCase,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: primary, width: 1),
-                          shape: const StadiumBorder(),
-                        ),
-                        child: _loading
-                            ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                            : Text(
-                          "Create Case",
-                          style: GoogleFonts.syne(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: primary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
