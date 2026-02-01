@@ -47,6 +47,8 @@ class CasesScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: bg,
+      extendBody: false,
+
       body: SafeArea(
         child: Column(
           children: [
@@ -58,13 +60,15 @@ class CasesScreen extends StatelessWidget {
                   _BackButtonChip(
                     primary: primary,
                     onTap: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const Homepage()),
-                            (route) => false,
-                      );
+                      // ✅ الأفضل: رجوع طبيعي
+                      Navigator.pop(context);
+                      // لو تبين دايم يرجع للهوم حتى لو ما فيه back stack:
+                      // Navigator.pushAndRemoveUntil(
+                      //   context,
+                      //   MaterialPageRoute(builder: (_) => const Homepage()),
+                      //   (route) => false,
+                      // );
                     },
-
                   ),
                   const Spacer(),
                   _PrimaryButton(
@@ -150,16 +154,12 @@ class CasesScreen extends StatelessWidget {
                     final data = d.data();
                     final status = (data['status'] as String?) ?? 'open';
                     final isClosed = status == 'closed';
-
-                    if (isClosed) {
-                      closed.add(d);
-                    } else {
-                      active.add(d);
-                    }
+                    if (isClosed) closed.add(d); else active.add(d);
                   }
 
                   return ListView(
-                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 90),
+                    // ✅ مهم عشان ما يختفي آخر شيء تحت البار
+                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 96),
                     children: [
                       // Active label
                       Padding(
@@ -234,8 +234,6 @@ class CasesScreen extends StatelessWidget {
                               lastUpdated: lastUpdated,
                               score: score,
                               onDashboard: () {
-                                // لو عندك Dashboard لكل case، هنا تحطين route
-                                // حالياً نخليه يفتح التفاصيل
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -304,8 +302,6 @@ class CasesScreen extends StatelessWidget {
                           final startDate = _formatDate(data['startDate']);
                           final lastUpdated = _formatDate(data['lastUpdated']);
                           final score = (data['infectionScore']?.toString()) ?? "--";
-                          final tagText = (data['tagText'] as String?) ?? "Closed";
-                          final isDanger = _isDangerTag(tagText);
 
                           return Padding(
                             padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
@@ -342,7 +338,7 @@ class CasesScreen extends StatelessWidget {
                                   ),
                                 );
                               },
-                              isDanger: isDanger,
+                              isDanger: false,
                             ),
                           );
                         }),
@@ -355,13 +351,18 @@ class CasesScreen extends StatelessWidget {
         ),
       ),
 
-      // Bottom nav (UI فقط)
-      bottomNavigationBar: const Padding(
-        padding: EdgeInsets.all(10),
-        child: AppBottomNav(currentIndex: 1),
+      // ✅ Bottom nav (بدون Padding عشان ما يبان الجوانب)
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 1,
+        onNewTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreateCaseScreen()),
+          );
+        },
       ),
-
     );
+
   }
 }
 

@@ -160,7 +160,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             onTapRight: () => setState(() => _showLogin = false),
                           ),
                           const SizedBox(height: 18),
-
                           Expanded(
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 420),
@@ -210,7 +209,6 @@ class _LoginScreenState extends State<LoginScreen> {
               theme: FieldTheme.light,
             ),
             const SizedBox(height: 12),
-
             _GlassField(
               label: "Password",
               icon: Icons.lock_outline_rounded,
@@ -226,7 +224,6 @@ class _LoginScreenState extends State<LoginScreen> {
               validator: (v) => (v == null || v.isEmpty) ? "Enter password" : null,
               theme: FieldTheme.light,
             ),
-
             const SizedBox(height: 10),
             Align(
               alignment: Alignment.centerRight,
@@ -243,19 +240,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 4),
-
             _LiquidGlassButton(
               text: "Login",
               loading: _loading,
               onTap: _loading ? null : _loginEmail,
               variant: ButtonVariant.primary,
             ),
-
             const SizedBox(height: 14),
             const _OrDivider(),
-
             const SizedBox(height: 14),
             _LiquidGlassButton(
               text: "Continue with Google",
@@ -264,7 +257,6 @@ class _LoginScreenState extends State<LoginScreen> {
               variant: ButtonVariant.surface,
               leadingAsset: "assets/images/google.png.png",
             ),
-
             const SizedBox(height: 10),
             if (isIOS)
               _LiquidGlassButton(
@@ -292,19 +284,17 @@ class _LoginScreenState extends State<LoginScreen> {
               icon: Icons.person_outline_rounded,
               controller: _nameR,
               validator: (v) => (v == null || v.trim().isEmpty) ? "Enter name" : null,
-              theme: FieldTheme.darkOnBlue,
+              theme: FieldTheme.greyLabelOnBlue, // ✅ labels grey on blue
             ),
             const SizedBox(height: 12),
-
             _GlassField(
               label: "Email",
               icon: Icons.mail_outline_rounded,
               controller: _emailR,
               validator: (v) => (v == null || v.trim().isEmpty) ? "Enter email" : null,
-              theme: FieldTheme.darkOnBlue,
+              theme: FieldTheme.greyLabelOnBlue, // ✅ labels grey on blue
             ),
             const SizedBox(height: 12),
-
             _GlassField(
               label: "Password",
               icon: Icons.lock_outline_rounded,
@@ -313,15 +303,14 @@ class _LoginScreenState extends State<LoginScreen> {
               suffix: IconButton(
                 icon: Icon(
                   _showPwR ? Icons.visibility : Icons.visibility_off,
-                  color: Colors.white.withOpacity(0.9),
+                  color: const Color(0xFF5B5F5F),
                 ),
                 onPressed: () => setState(() => _showPwR = !_showPwR),
               ),
               validator: (v) => (v == null || v.length < 6) ? "Password must be 6+ chars" : null,
-              theme: FieldTheme.darkOnBlue,
+              theme: FieldTheme.greyLabelOnBlue, // ✅ labels grey on blue
             ),
             const SizedBox(height: 12),
-
             _GlassField(
               label: "Confirm password",
               icon: Icons.lock_outline_rounded,
@@ -330,35 +319,30 @@ class _LoginScreenState extends State<LoginScreen> {
               suffix: IconButton(
                 icon: Icon(
                   _showPwC ? Icons.visibility : Icons.visibility_off,
-                  color: Colors.white.withOpacity(0.9),
+                  color: const Color(0xFF5B5F5F),
                 ),
                 onPressed: () => setState(() => _showPwC = !_showPwC),
               ),
               validator: (v) => (v != _passR.text) ? "Passwords do not match" : null,
-              theme: FieldTheme.darkOnBlue,
+              theme: FieldTheme.greyLabelOnBlue, // ✅ labels grey on blue
             ),
-
             const SizedBox(height: 16),
-
             _LiquidGlassButton(
               text: "Create account",
               loading: _loading,
               onTap: _loading ? null : _registerEmail,
               variant: ButtonVariant.onBlue,
             ),
-
             const SizedBox(height: 14),
             const _OrDivider(onBlue: true),
             const SizedBox(height: 14),
-
             _LiquidGlassButton(
               text: "Continue with Google",
               loading: false,
               onTap: _loading ? null : _loginGoogle,
-              variant: ButtonVariant.onBlueSurface,
+              variant: ButtonVariant.surface,
               leadingAsset: "assets/images/google.png.png",
             ),
-
             const SizedBox(height: 10),
             if (isIOS)
               _LiquidGlassButton(
@@ -379,7 +363,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
 class _TopHeader extends StatelessWidget {
   const _TopHeader({required this.onWhite});
-
   final bool onWhite;
 
   static const Color bgBlue = Color(0xFF3B7691);
@@ -566,7 +549,8 @@ class _AuthSwitchLiquid extends StatelessWidget {
   }
 }
 
-enum FieldTheme { light, darkOnBlue }
+/// ✅ UPDATED: added greyLabelOnBlue
+enum FieldTheme { light, darkOnBlue, greyLabelOnBlue }
 
 class _GlassField extends StatelessWidget {
   const _GlassField({
@@ -589,12 +573,24 @@ class _GlassField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onBlue = theme == FieldTheme.darkOnBlue;
+    final onBlue = theme != FieldTheme.light;
 
     final fill = onBlue ? Colors.white.withOpacity(0.14) : const Color(0xFFF2F4F5);
     final textColor = onBlue ? Colors.white : const Color(0xFF111827);
-    final labelColor = onBlue ? Colors.white.withOpacity(0.85) : const Color(0xFF5B5F5F);
-    final iconColor = onBlue ? Colors.white.withOpacity(0.9) : const Color(0xFF5B5F5F);
+
+    // ✅ labels grey when theme is greyLabelOnBlue
+    final labelColor = theme == FieldTheme.greyLabelOnBlue
+        ? const Color(0xFF5B5F5F)
+        : onBlue
+        ? Colors.white.withOpacity(0.85)
+        : const Color(0xFF5B5F5F);
+
+    // ✅ icons grey when theme is greyLabelOnBlue
+    final iconColor = theme == FieldTheme.greyLabelOnBlue
+        ? const Color(0xFF5B5F5F)
+        : onBlue
+        ? Colors.white.withOpacity(0.9)
+        : const Color(0xFF5B5F5F);
 
     return TextFormField(
       controller: controller,

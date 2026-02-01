@@ -18,13 +18,13 @@ class AlertsScreen extends StatelessWidget {
 
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 90),
+          // ✅ خلينا padding السفلي أكبر عشان ما يصير overlap مع البار
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 110),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
 
-              // Title
               Text(
                 "Alert & Notifications",
                 style: GoogleFonts.dmSans(
@@ -35,7 +35,6 @@ class AlertsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 6),
 
-              // Subtitle
               Text(
                 "Important updates about your wound healing",
                 style: GoogleFonts.inter(
@@ -47,7 +46,6 @@ class AlertsScreen extends StatelessWidget {
 
               const Spacer(),
 
-              // Empty state center
               Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -87,10 +85,13 @@ class AlertsScreen extends StatelessWidget {
         ),
       ),
 
-      // Bottom nav like screenshot
-      bottomNavigationBar: const Padding(
-        padding: EdgeInsets.all(10),
-        child: AppBottomNav(currentIndex: 3), // Alerts tab highlighted
+      // ✅ بدون Padding عشان ما يطلع Floating
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 3, // Alerts selected
+        // لو تبين زر + يفتح CreateCase
+        onNewTap: () {
+          // اتركيه فاضي مؤقتًا أو افتحي create screen هنا
+        },
       ),
     );
   }

@@ -39,9 +39,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
+
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 96),
+          // ✅ نخلي مساحة تحت عشان ما يتداخل مع البار
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 110),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -74,7 +76,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const PersonalInformationScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const PersonalInformationScreen(),
+                      ),
                     );
                   },
                   child: Row(
@@ -86,7 +90,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: primary.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(Icons.person_rounded, color: primary.withOpacity(0.9)),
+                        child: Icon(
+                          Icons.person_rounded,
+                          color: primary.withOpacity(0.9),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -113,7 +120,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFF94A3B8),
+                      ),
                     ],
                   ),
                 ),
@@ -121,7 +131,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 14),
 
-              // ✅ Better spacing for "Other settings"
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 8),
                 child: Text(
@@ -145,19 +154,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const PersonalInformationScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const PersonalInformationScreen(),
+                          ),
                         );
                       },
                     ),
                     const _DividerLine(),
-
                     _SettingRow(
                       icon: Icons.notifications_none_rounded,
                       title: "Notifications",
                       onTap: _comingSoon,
                     ),
                     const _DividerLine(),
-
                     _SettingRow(
                       icon: Icons.watch_outlined,
                       title: "Smartwatch pairing",
@@ -169,8 +178,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       },
                     ),
                     const _DividerLine(),
-
-                    // ✅ Logout with arrow like others
                     _SettingRow(
                       icon: Icons.logout_rounded,
                       title: "Logout",
@@ -199,9 +206,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: const Padding(
-        padding: EdgeInsets.all(10),
-        child: AppBottomNav(currentIndex: 4),
+
+      // ✅ بدون Padding عشان ما يطلع Floating
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 4,
+        onNewTap: () {
+          // لو تبين + يفتح CreateCaseScreen حطيه هنا
+        },
       ),
     );
   }
@@ -230,7 +241,11 @@ class _TopBackButton extends StatelessWidget {
               border: Border.all(color: Colors.white.withOpacity(0.75)),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF0F172A)),
+            child: const Icon(
+              Icons.arrow_back_ios_new,
+              size: 18,
+              color: Color(0xFF0F172A),
+            ),
           ),
         ),
       ),
@@ -311,7 +326,10 @@ class _SettingRow extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: danger ? color.withOpacity(0.9) : const Color(0xFF94A3B8)),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: danger ? color.withOpacity(0.9) : const Color(0xFF94A3B8),
+            ),
           ],
         ),
       ),

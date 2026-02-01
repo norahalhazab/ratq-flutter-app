@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../widgets/bottom_nav.dart';
+import '../screens/cases_screen.dart';
 
 class CreateCaseScreen extends StatefulWidget {
   const CreateCaseScreen({super.key});
@@ -67,8 +68,13 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
       if (!mounted) return;
       _toast("Case created ✅");
-      // stay here or navigate back to Cases tab:
-      // Navigator.pop(context);
+
+      // ✅ بعد الإنشاء: يودّيك للـ Cases tab مباشرة
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const CasesScreen()),
+            (route) => false,
+      );
     } catch (e) {
       _toast(e.toString());
     } finally {
@@ -85,24 +91,27 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
 
-      // ✅ keep bottom nav visible + highlight "New"
-      bottomNavigationBar: const Padding(
-        padding: EdgeInsets.all(10),
-        child: AppBottomNav(currentIndex: 2),
+      // ✅ بدون Padding عشان ما يبان الجوانب/يصير floating
+      // ✅ currentIndex=2 عشان يبين زر + محدد
+      // ✅ onNewTap ما يسوي شي لأنك أصلاً هنا
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 2,
+        onNewTap: () {},
       ),
 
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 8, 18, 90),
+          // ✅ زودنا bottom padding عشان المحتوى ما يدخل تحت البار
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 110),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top bar (NO back button if you want it like a tab)
+              // Top bar (بدون back إذا تبينها “tab”)
               SizedBox(
                 height: 48,
                 child: Row(
                   children: [
-                    const SizedBox(width: 48), // keep title centered
+                    const SizedBox(width: 48),
                     const Spacer(),
                     Text(
                       "Create Case",

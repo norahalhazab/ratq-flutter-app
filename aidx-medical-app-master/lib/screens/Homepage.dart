@@ -40,10 +40,22 @@ class _HomepageState extends State<Homepage> {
 
     return Scaffold(
       backgroundColor: bg,
-      bottomNavigationBar:  AppBottomNav(currentIndex: 0),
+      // ✅ keep it stuck bottom
+      extendBody: false,
+
+      // ✅ bottom nav
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 0,
+        onNewTap: () {
+          // TODO: افتحي Create Case أو أي شاشة تبينها لزر +
+          // Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateCaseScreen()));
+        },
+      ),
+
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+          // ✅ IMPORTANT: add bottom padding so content doesn't hide behind the nav
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 96), // 96 تقريباً = ارتفاع البار + مسافة
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -51,7 +63,6 @@ class _HomepageState extends State<Homepage> {
               const _PageTitle(title: "Dashboard"),
               const SizedBox(height: 16),
 
-              // ---- 2x2 cards like the screenshot ----
               Row(
                 children: const [
                   Expanded(
@@ -94,8 +105,6 @@ class _HomepageState extends State<Homepage> {
                     ),
                   ),
                   const SizedBox(width: 14),
-
-                  // ✅ Infection score from selected case
                   Expanded(
                     child: _SelectedCaseInfectionCard(
                       selectedCaseId: _selectedCaseId,
@@ -106,20 +115,16 @@ class _HomepageState extends State<Homepage> {
 
               const SizedBox(height: 22),
 
-              // ---- Case selector (from Firestore) ----
               StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: casesQuery.snapshots(),
                 builder: (context, snap) {
-                  if (snap.hasError) {
-                    return const Text("Error loading cases");
-                  }
+                  if (snap.hasError) return const Text("Error loading cases");
                   if (!snap.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
                   final docs = snap.data!.docs;
 
-                  // If no cases
                   if (docs.isEmpty) {
                     return _CaseSelector(
                       enabled: false,
@@ -130,7 +135,6 @@ class _HomepageState extends State<Homepage> {
                     );
                   }
 
-                  // If selected is null or not found, pick first (use addPostFrame to avoid setState in build)
                   final ids = docs.map((d) => d.id).toList();
                   if (_selectedCaseId == null || !ids.contains(_selectedCaseId)) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -157,7 +161,8 @@ class _HomepageState extends State<Homepage> {
 
               const SizedBox(height: 14),
 
-              const Spacer(),
+              // ❌ لا نستخدم Spacer إذا عندك محتوى ممكن ينضغط
+              // const Spacer(),
 
               const Text(
                 "Smartwatch sync: coming soon (values will replace ---)",
@@ -168,6 +173,7 @@ class _HomepageState extends State<Homepage> {
         ),
       ),
     );
+
   }
 }
 

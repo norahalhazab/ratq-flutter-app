@@ -13,10 +13,7 @@ class AppBottomNav extends StatefulWidget {
     this.onNewTap,
   });
 
-  /// 0=Home, 1=Cases, 2=New, 3=Alerts, 4=Settings
-  final int currentIndex;
-
-  /// ✅ parent decides what to open when pressing "New"
+  final int currentIndex; // 0 home, 1 cases, 2 new, 3 alerts, 4 settings
   final VoidCallback? onNewTap;
 
   @override
@@ -26,140 +23,163 @@ class AppBottomNav extends StatefulWidget {
 class _AppBottomNavState extends State<AppBottomNav> {
   late int _index;
 
-  static const double _barH = 82;
-  static const double _radius = 34;
-  static const double _padX = 16;
+  // sizing
+  static const double _barHeight = 92;
+  static const double _radius = 22;
 
-  static const Color _primary = Color(0xFF3B7691);
-  static const Color _blue1 = Color(0xFF2E8BC0);
-  static const Color _blue2 = Color(0xFF3B7691);
-  static const Color _blue3 = Color(0xFF6FE7FF);
+  // colors
+  static const Color primary = Color(0xFF3B7691); // your blue
+  static const Color iconGray = Color(0xFFBFC7D1); // light gray
+  static const Color outline = Color(0x22000000);
 
-  static const _items = <_NavItem>[
-    _NavItem(label: "Home", icon: Icons.home_rounded),
-    _NavItem(label: "Cases", icon: Icons.folder_rounded),
-    _NavItem(label: "New", icon: Icons.add_rounded),
-    _NavItem(label: "Alerts", icon: Icons.notifications_rounded),
-    _NavItem(label: "Settings", icon: Icons.settings_rounded),
+  static const _tabs = <_TabItem>[
+    _TabItem(icon: Icons.home_rounded, label: "Home"),
+    _TabItem(icon: Icons.folder_rounded, label: "Cases"),
+    _TabItem(icon: Icons.add_rounded, label: "New"),
+    _TabItem(icon: Icons.notifications_rounded, label: "Alerts"),
+    _TabItem(icon: Icons.person_rounded, label: "Profile"),
   ];
 
   @override
   void initState() {
     super.initState();
-    _index = widget.currentIndex.clamp(0, 4);
+    _index = widget.currentIndex.clamp(0, _tabs.length - 1);
   }
 
   @override
   void didUpdateWidget(covariant AppBottomNav oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentIndex != widget.currentIndex) {
-      _index = widget.currentIndex.clamp(0, 4);
+      _index = widget.currentIndex.clamp(0, _tabs.length - 1);
     }
   }
 
-  void _goTab(int tabIndex) {
-    // ✅ New: let parent handle it
-    if (tabIndex == 2) {
+  void _go(int i) {
+    if (i == 2) {
       widget.onNewTap?.call();
       return;
     }
+    if (i == _index) return;
 
-    if (tabIndex == _index) return;
-    setState(() => _index = tabIndex);
+    setState(() => _index = i);
 
-    final Widget screen;
-    switch (tabIndex) {
-      case 0:
-        screen = const Homepage();
-        break;
-      case 1:
-        screen = const CasesScreen();
-        break;
-      case 3:
-        screen = const AlertsScreen();
-        break;
-      case 4:
-        screen = const SettingsScreen();
-        break;
-      default:
-        screen = const Homepage();
-    }
+    final page = switch (i) {
+      0 => const Homepage(),
+      1 => const CasesScreen(),
+      3 => const AlertsScreen(),
+      4 => const SettingsScreen(),
+      _ => const Homepage(),
+    };
 
-    Navigator.pushReplacement(context, _fadeSlideRoute(screen));
+    Navigator.pushReplacement(context, _route(page));
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(_padX, 0, _padX, 12),
+    // IMPORTANT: put this directly in Scaffold.bottomNavigationBar
+    return Material(
+      color: Colors.transparent,
+      child: SafeArea(
+        top: false,
         child: SizedBox(
-          height: _barH,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(_radius),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(_radius),
-                  border: Border.all(color: Colors.white.withOpacity(0.45)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x22000000),
-                      blurRadius: 22,
-                      offset: Offset(0, 12),
+          height: _barHeight,
+          width: double.infinity,
+          child: LayoutBuilder(
+            builder: (context, c) {
+              final slotW = c.maxWidth / _tabs.length;
+
+              // indicator sizes (like photo)
+              const indicatorW = 60.0;
+              const indicatorH = 5.0;
+
+              final indicatorLeft = (_index * slotW) + (slotW - indicatorW) / 2;
+
+              return Stack(
+                children: [
+                  // White bar background
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(_radius),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        height: _barHeight,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(_radius),
+                          border: Border.all(color: outline, width: 1),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x14000000),
+                              blurRadius: 18,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      _blue1.withOpacity(0.92),
-                      _blue2.withOpacity(0.92),
-                      _blue3.withOpacity(0.45),
-                    ],
                   ),
-                ),
-                child: LayoutBuilder(
-                  builder: (context, c) {
-                    final w = c.maxWidth;
-                    final slotW = w / _items.length;
 
-                    const pillH = 62.0;
-                    final pillW = (slotW * 1.12).clamp(74.0, 150.0);
-                    final left = (_index * slotW) + (slotW - pillW) / 2.0;
-                    final clampedLeft = left.clamp(8.0, w - pillW - 8.0);
+                  // ✅ Top indicator line
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOutCubic,
+                    left: indicatorLeft.clamp(8.0, c.maxWidth - indicatorW - 8.0),
+                    top: 6,
+                    child: Container(
+                      width: indicatorW,
+                      height: indicatorH,
+                      decoration: BoxDecoration(
+                        color: primary,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
 
-                    return Stack(
-                      children: [
-                        AnimatedPositioned(
-                          duration: const Duration(milliseconds: 280),
-                          curve: Curves.easeOutCubic,
-                          left: clampedLeft,
-                          top: (_barH - pillH) / 2,
-                          child: _SelectedPill(width: pillW, height: pillH),
+                  // Tabs
+                  Row(
+                    children: List.generate(_tabs.length, (i) {
+                      final selected = i == _index;
+
+                      return Expanded(
+                        child: InkWell(
+                          onTap: () => _go(i),
+                          borderRadius: BorderRadius.circular(999),
+                          child: SizedBox(
+                            height: _barHeight,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(height: 8), // space under indicator
+                                Icon(
+                                  _tabs[i].icon,
+                                  size: 30,
+                                  color: selected ? primary : iconGray,
+                                ),
+                                const SizedBox(height: 8),
+                                AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 200),
+                                  opacity: selected ? 1 : 0,
+                                  child: Text(
+                                    _tabs[i].label,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFFBFC7D1),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                              ],
+                            ),
+                          ),
                         ),
-                        Row(
-                          children: List.generate(_items.length, (i) {
-                            final item = _items[i];
-                            final selected = i == _index;
-                            return Expanded(
-                              child: _NavButton(
-                                icon: item.icon,
-                                label: item.label,
-                                selected: selected,
-                                onTap: () => _goTab(i),
-                              ),
-                            );
-                          }),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
+                      );
+                    }),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -167,112 +187,22 @@ class _AppBottomNavState extends State<AppBottomNav> {
   }
 }
 
-/* ---------------- UI ---------------- */
-
-class _NavItem {
-  final String label;
-  final IconData icon;
-  const _NavItem({required this.label, required this.icon});
-}
-
-class _SelectedPill extends StatelessWidget {
-  const _SelectedPill({required this.width, required this.height});
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(999),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              color: Colors.white.withOpacity(0.92),
-              border: Border.all(color: Colors.white.withOpacity(0.75)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x22000000),
-                  blurRadius: 16,
-                  offset: Offset(0, 10),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavButton extends StatelessWidget {
-  const _NavButton({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
+/* ---------- model ---------- */
+class _TabItem {
   final IconData icon;
   final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  static const Color primary = Color(0xFF3B7691);
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = selected ? primary : Colors.white.withOpacity(0.92);
-
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: 82,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedScale(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutBack,
-              scale: selected ? 1.06 : 1.0,
-              child: Icon(icon, size: 26, color: fg),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: fg,
-                fontWeight: FontWeight.w800,
-                fontSize: 11.5,
-                height: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  const _TabItem({required this.icon, required this.label});
 }
 
-PageRouteBuilder _fadeSlideRoute(Widget page) {
+/* ---------- route ---------- */
+PageRouteBuilder _route(Widget page) {
   return PageRouteBuilder(
-    transitionDuration: const Duration(milliseconds: 240),
-    reverseTransitionDuration: const Duration(milliseconds: 220),
+    transitionDuration: const Duration(milliseconds: 220),
     pageBuilder: (_, __, ___) => page,
-    transitionsBuilder: (_, animation, __, child) {
-      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
-      final slide = Tween<Offset>(
-        begin: const Offset(0.03, 0),
-        end: Offset.zero,
-      ).animate(fade);
-
+    transitionsBuilder: (_, a, __, child) {
       return FadeTransition(
-        opacity: fade,
-        child: SlideTransition(position: slide, child: child),
+        opacity: CurvedAnimation(parent: a, curve: Curves.easeOut),
+        child: child,
       );
     },
   );
