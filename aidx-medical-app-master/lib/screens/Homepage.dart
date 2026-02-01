@@ -40,7 +40,7 @@ class _HomepageState extends State<Homepage> {
 
     return Scaffold(
       backgroundColor: bg,
-      bottomNavigationBar: const AppBottomNav(currentIndex: 0),
+      bottomNavigationBar:  AppBottomNav(currentIndex: 0),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),

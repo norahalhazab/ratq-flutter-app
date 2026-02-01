@@ -5,16 +5,19 @@ import '../screens/Homepage.dart';
 import '../screens/cases_screen.dart';
 import '../screens/alerts_screen.dart';
 import '../screens/settings_screen.dart';
-import '../screens/create_case_screen.dart';
 
 class AppBottomNav extends StatefulWidget {
   const AppBottomNav({
     super.key,
     required this.currentIndex,
+    this.onNewTap,
   });
 
   /// 0=Home, 1=Cases, 2=New, 3=Alerts, 4=Settings
   final int currentIndex;
+
+  /// ✅ parent decides what to open when pressing "New"
+  final VoidCallback? onNewTap;
 
   @override
   State<AppBottomNav> createState() => _AppBottomNavState();
@@ -23,15 +26,14 @@ class AppBottomNav extends StatefulWidget {
 class _AppBottomNavState extends State<AppBottomNav> {
   late int _index;
 
-  static const double _barH = 80;
-  static const double _radius = 30;
+  static const double _barH = 82;
+  static const double _radius = 34;
   static const double _padX = 16;
 
-  // Ratq blue liquid glass palette
+  static const Color _primary = Color(0xFF3B7691);
   static const Color _blue1 = Color(0xFF2E8BC0);
   static const Color _blue2 = Color(0xFF3B7691);
   static const Color _blue3 = Color(0xFF6FE7FF);
-  static const Color _primary = Color(0xFF3B7691);
 
   static const _items = <_NavItem>[
     _NavItem(label: "Home", icon: Icons.home_rounded),
@@ -55,23 +57,20 @@ class _AppBottomNavState extends State<AppBottomNav> {
     }
   }
 
-  Future<void> _goTab(int tabIndex) async {
-    // Center: New Case (push)
+  void _goTab(int tabIndex) {
+    // ✅ New: let parent handle it
     if (tabIndex == 2) {
-      if (!mounted) return;
-      Navigator.push(context, _fadeSlideRoute(const CreateCaseScreen()));
+      widget.onNewTap?.call();
       return;
     }
 
     if (tabIndex == _index) return;
     setState(() => _index = tabIndex);
 
-    if (!mounted) return;
-
-    Widget screen;
+    final Widget screen;
     switch (tabIndex) {
       case 0:
-        screen = Homepage();
+        screen = const Homepage();
         break;
       case 1:
         screen = const CasesScreen();
@@ -83,7 +82,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
         screen = const SettingsScreen();
         break;
       default:
-        screen = Homepage();
+        screen = const Homepage();
     }
 
     Navigator.pushReplacement(context, _fadeSlideRoute(screen));
@@ -104,7 +103,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(_radius),
-                  border: Border.all(color: Colors.white.withOpacity(0.55)),
+                  border: Border.all(color: Colors.white.withOpacity(0.45)),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x22000000),
@@ -116,9 +115,9 @@ class _AppBottomNavState extends State<AppBottomNav> {
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      _blue1.withOpacity(0.35),
-                      _blue2.withOpacity(0.35),
-                      _blue3.withOpacity(0.25),
+                      _blue1.withOpacity(0.92),
+                      _blue2.withOpacity(0.92),
+                      _blue3.withOpacity(0.45),
                     ],
                   ),
                 ),
@@ -127,34 +126,29 @@ class _AppBottomNavState extends State<AppBottomNav> {
                     final w = c.maxWidth;
                     final slotW = w / _items.length;
 
-                    // Highlight pill behind selected item (icon + label)
-                    const pillH = 56.0;
-                    final pillW = (slotW * 1.25).clamp(86.0, 150.0);
-
+                    const pillH = 62.0;
+                    final pillW = (slotW * 1.12).clamp(74.0, 150.0);
                     final left = (_index * slotW) + (slotW - pillW) / 2.0;
-                    final clampedLeft = left.clamp(6.0, w - pillW - 6.0);
+                    final clampedLeft = left.clamp(8.0, w - pillW - 8.0);
 
                     return Stack(
                       children: [
                         AnimatedPositioned(
-                          duration: const Duration(milliseconds: 300),
+                          duration: const Duration(milliseconds: 280),
                           curve: Curves.easeOutCubic,
                           left: clampedLeft,
                           top: (_barH - pillH) / 2,
                           child: _SelectedPill(width: pillW, height: pillH),
                         ),
-
                         Row(
                           children: List.generate(_items.length, (i) {
                             final item = _items[i];
                             final selected = i == _index;
-
                             return Expanded(
                               child: _NavButton(
                                 icon: item.icon,
                                 label: item.label,
                                 selected: selected,
-                                isCenterAdd: i == 2,
                                 onTap: () => _goTab(i),
                               ),
                             );
@@ -173,7 +167,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
   }
 }
 
-/* ---------------- UI PARTS ---------------- */
+/* ---------------- UI ---------------- */
 
 class _NavItem {
   final String label;
@@ -182,11 +176,7 @@ class _NavItem {
 }
 
 class _SelectedPill extends StatelessWidget {
-  const _SelectedPill({
-    required this.width,
-    required this.height,
-  });
-
+  const _SelectedPill({required this.width, required this.height});
   final double width;
   final double height;
 
@@ -196,14 +186,21 @@ class _SelectedPill extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(999),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
           child: Container(
             width: width,
             height: height,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
               color: Colors.white.withOpacity(0.92),
-              border: Border.all(color: Colors.white.withOpacity(0.78)),
+              border: Border.all(color: Colors.white.withOpacity(0.75)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x22000000),
+                  blurRadius: 16,
+                  offset: Offset(0, 10),
+                ),
+              ],
             ),
           ),
         ),
@@ -218,42 +215,37 @@ class _NavButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    required this.isCenterAdd,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final bool isCenterAdd;
 
   static const Color primary = Color(0xFF3B7691);
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = selected ? primary : Colors.white.withOpacity(0.92);
-    final textColor = selected ? primary : Colors.white.withOpacity(0.92);
-
-    final iconSize = isCenterAdd ? 28.0 : 24.0;
+    final fg = selected ? primary : Colors.white.withOpacity(0.92);
 
     return InkWell(
       onTap: onTap,
       child: SizedBox(
-        height: 80,
+        height: 82,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             AnimatedScale(
-              duration: const Duration(milliseconds: 220),
+              duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutBack,
-              scale: selected ? 1.05 : 1.0,
-              child: Icon(icon, size: iconSize, color: iconColor),
+              scale: selected ? 1.06 : 1.0,
+              child: Icon(icon, size: 26, color: fg),
             ),
             const SizedBox(height: 6),
             Text(
               label,
               style: TextStyle(
-                color: textColor,
+                color: fg,
                 fontWeight: FontWeight.w800,
                 fontSize: 11.5,
                 height: 1,
@@ -266,8 +258,6 @@ class _NavButton extends StatelessWidget {
   }
 }
 
-/* ---------------- ROUTE (smooth) ---------------- */
-
 PageRouteBuilder _fadeSlideRoute(Widget page) {
   return PageRouteBuilder(
     transitionDuration: const Duration(milliseconds: 240),
@@ -276,7 +266,7 @@ PageRouteBuilder _fadeSlideRoute(Widget page) {
     transitionsBuilder: (_, animation, __, child) {
       final fade = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
       final slide = Tween<Offset>(
-        begin: const Offset(0.02, 0),
+        begin: const Offset(0.03, 0),
         end: Offset.zero,
       ).animate(fade);
 
