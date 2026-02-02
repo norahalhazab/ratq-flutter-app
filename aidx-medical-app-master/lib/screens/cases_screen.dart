@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../widgets/bottom_nav.dart';
-import 'Homepage.dart';
 
+import '../widgets/bottom_nav.dart';
 import 'create_case_screen.dart';
 import 'case_details_screen.dart';
 
@@ -47,28 +46,18 @@ class CasesScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: bg,
-      extendBody: false,
 
       body: SafeArea(
         child: Column(
           children: [
-            // Header area (Back + New Case)
+            // Header (Back + New Case)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
               child: Row(
                 children: [
                   _BackButtonChip(
                     primary: primary,
-                    onTap: () {
-                      // ✅ الأفضل: رجوع طبيعي
-                      Navigator.pop(context);
-                      // لو تبين دايم يرجع للهوم حتى لو ما فيه back stack:
-                      // Navigator.pushAndRemoveUntil(
-                      //   context,
-                      //   MaterialPageRoute(builder: (_) => const Homepage()),
-                      //   (route) => false,
-                      // );
-                    },
+                    onTap: () => Navigator.pop(context),
                   ),
                   const Spacer(),
                   _PrimaryButton(
@@ -123,9 +112,7 @@ class CasesScreen extends StatelessWidget {
                 stream: casesQuery.snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return _ErrorState(
-                      message: "Error loading cases: ${snapshot.error}",
-                    );
+                    return _ErrorState(message: "Error loading cases: ${snapshot.error}");
                   }
 
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -147,18 +134,36 @@ class CasesScreen extends StatelessWidget {
                     );
                   }
 
+                  // =========================
+                  // ✅ Case numbering per user
+                  // Case 1 = oldest by createdAt/startDate/surgeryDate
+                  // =========================
+                  final sortedByCreated = [...docs];
+                  sortedByCreated.sort((a, b) {
+                    final aDt = _bestCaseDate(a.data());
+                    final bDt = _bestCaseDate(b.data());
+                    return aDt.compareTo(bDt);
+                  });
+
+                  final Map<String, int> caseNumberById = {};
+                  for (int i = 0; i < sortedByCreated.length; i++) {
+                    caseNumberById[sortedByCreated[i].id] = i + 1;
+                  }
+
                   final active = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
                   final closed = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
 
                   for (final d in docs) {
                     final data = d.data();
-                    final status = (data['status'] as String?) ?? 'open';
-                    final isClosed = status == 'closed';
-                    if (isClosed) closed.add(d); else active.add(d);
+                    final status = ((data['status'] as String?) ?? 'active').toLowerCase();
+                    if (status == 'closed') {
+                      closed.add(d);
+                    } else {
+                      active.add(d);
+                    }
                   }
 
                   return ListView(
-                    // ✅ مهم عشان ما يختفي آخر شيء تحت البار
                     padding: const EdgeInsets.fromLTRB(0, 0, 0, 96),
                     children: [
                       // Active label
@@ -205,10 +210,13 @@ class CasesScreen extends StatelessWidget {
                           final data = doc.data();
                           final caseId = doc.id;
 
-                          final title = (data['title'] as String?) ?? "Case";
-                          final startDate = _formatDate(data['startDate']);
-                          final lastUpdated = _formatDate(data['lastUpdated']);
+                          final caseNo = caseNumberById[caseId] ?? 0;
+                          final title = caseNo > 0 ? "Case $caseNo" : "Case";
+
+                          final startDate = _formatDate(data['startDate'] ?? data['surgeryDate'] ?? data['createdAt']);
+                          final lastUpdated = _formatDate(data['lastUpdated'] ?? data['createdAt']);
                           final score = (data['infectionScore']?.toString()) ?? "--";
+
                           final tagText = (data['tagText'] as String?) ?? "Active";
                           final isDanger = _isDangerTag(tagText);
 
@@ -229,7 +237,7 @@ class CasesScreen extends StatelessWidget {
                                     : const [Color(0xFF465467), Color(0xFFA4C9DA)],
                               ),
                               title: title,
-                              day: _computeDayLabel(data['startDate']),
+                              day: _computeDayLabel(data['startDate'] ?? data['createdAt'] ?? data['surgeryDate']),
                               startDate: startDate,
                               lastUpdated: lastUpdated,
                               score: score,
@@ -298,9 +306,11 @@ class CasesScreen extends StatelessWidget {
                           final data = doc.data();
                           final caseId = doc.id;
 
-                          final title = (data['title'] as String?) ?? "Case";
-                          final startDate = _formatDate(data['startDate']);
-                          final lastUpdated = _formatDate(data['lastUpdated']);
+                          final caseNo = caseNumberById[caseId] ?? 0;
+                          final title = caseNo > 0 ? "Case $caseNo" : "Case";
+
+                          final startDate = _formatDate(data['startDate'] ?? data['surgeryDate'] ?? data['createdAt']);
+                          final lastUpdated = _formatDate(data['lastUpdated'] ?? data['createdAt']);
                           final score = (data['infectionScore']?.toString()) ?? "--";
 
                           return Padding(
@@ -318,7 +328,7 @@ class CasesScreen extends StatelessWidget {
                                 colors: [Color(0xFF475569), Color(0xFFE2E8F0)],
                               ),
                               title: title,
-                              day: _computeDayLabel(data['startDate']),
+                              day: _computeDayLabel(data['startDate'] ?? data['createdAt'] ?? data['surgeryDate']),
                               startDate: startDate,
                               lastUpdated: lastUpdated,
                               score: score,
@@ -351,7 +361,6 @@ class CasesScreen extends StatelessWidget {
         ),
       ),
 
-      // ✅ Bottom nav (بدون Padding عشان ما يبان الجوانب)
       bottomNavigationBar: AppBottomNav(
         currentIndex: 1,
         onNewTap: () {
@@ -362,7 +371,6 @@ class CasesScreen extends StatelessWidget {
         },
       ),
     );
-
   }
 }
 
@@ -373,32 +381,36 @@ bool _isDangerTag(String tag) {
   return t.contains('high') || t.contains('danger') || t.contains('risk');
 }
 
-String _formatDate(dynamic value) {
-  // accepts Timestamp or String or DateTime
-  if (value == null) return "--";
+DateTime _bestCaseDate(Map<String, dynamic> data) {
+  // Oldest ordering for numbering
+  final dt = _toDate(data['createdAt']) ??
+      _toDate(data['startDate']) ??
+      _toDate(data['surgeryDate']);
+  return dt ?? DateTime.fromMillisecondsSinceEpoch(0);
+}
+
+DateTime? _toDate(dynamic value) {
+  if (value == null) return null;
   try {
-    DateTime dt;
-    if (value is Timestamp) dt = value.toDate();
-    else if (value is DateTime) dt = value;
-    else if (value is String) dt = DateTime.tryParse(value) ?? DateTime.now();
-    else return "--";
-    // YYYY-MM-DD
-    final y = dt.year.toString().padLeft(4, '0');
-    final m = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    return "$y-$m-$d";
-  } catch (_) {
-    return "--";
-  }
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+  } catch (_) {}
+  return null;
+}
+
+String _formatDate(dynamic value) {
+  if (value == null) return "--";
+  final dt = _toDate(value);
+  if (dt == null) return "--";
+  final y = dt.year.toString().padLeft(4, '0');
+  final m = dt.month.toString().padLeft(2, '0');
+  final d = dt.day.toString().padLeft(2, '0');
+  return "$y-$m-$d";
 }
 
 String _computeDayLabel(dynamic startDate) {
-  if (startDate == null) return "Day --";
-  DateTime? dt;
-  if (startDate is Timestamp) dt = startDate.toDate();
-  if (startDate is DateTime) dt = startDate;
-  if (startDate is String) dt = DateTime.tryParse(startDate);
-
+  final dt = _toDate(startDate);
   if (dt == null) return "Day --";
   final diff = DateTime.now().difference(dt).inDays + 1;
   return "Day $diff";
@@ -435,6 +447,60 @@ class _BackButtonChip extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({
+    required this.label,
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        width: 120,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF63A2BF).withOpacity(0.20),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
+              spreadRadius: -4,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFFF8FAFC)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFFF8FAFC),
+                height: 20 / 14,
               ),
             ),
           ],
@@ -550,7 +616,7 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-/* ===================== Your Existing Widgets (same) ===================== */
+/* ===================== Case Card ===================== */
 
 class CaseCard extends StatelessWidget {
   const CaseCard({
@@ -860,125 +926,6 @@ class _ActionChip extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({
-    required this.label,
-    required this.color,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String label;
-  final Color color;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
-      child: Container(
-        width: 120,
-        height: 40,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF63A2BF).withOpacity(0.20),
-              blurRadius: 15,
-              offset: const Offset(0, 4),
-              spreadRadius: -4,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16, color: const Color(0xFFF8FAFC)),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFFF8FAFC),
-                height: 20 / 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({required this.primary});
-  final Color primary;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 57,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: const Border(top: BorderSide(color: Color(0x26000000), width: 1)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: const [
-          _NavItem(label: "Home", icon: Icons.home_outlined, selected: false),
-          _NavItem(label: "Cases", icon: Icons.folder_outlined, selected: true),
-          _NavItem(label: "Alerts", icon: Icons.notifications_none, selected: false),
-          _NavItem(label: "Settings", icon: Icons.settings_outlined, selected: false),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.label,
-    required this.icon,
-    required this.selected,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = const Color(0xFF3B7691);
-    final color = selected ? primary : const Color(0xFF475569);
-
-    return SizedBox(
-      width: 80,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 11.6,
-              fontWeight: FontWeight.w600,
-              color: color,
-              height: 16 / 11.6,
-            ),
-          ),
-        ],
       ),
     );
   }

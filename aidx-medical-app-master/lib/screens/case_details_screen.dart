@@ -7,8 +7,14 @@ import '../widgets/bottom_nav.dart';
 import 'whq_screen.dart';
 
 class CaseDetailsScreen extends StatelessWidget {
-  const CaseDetailsScreen({super.key, required this.caseId});
+  const CaseDetailsScreen({
+    super.key,
+    required this.caseId,
+    this.caseNumber,
+  });
+
   final String caseId;
+  final int? caseNumber;
 
   static const bg = Color(0xFFFFFFFF);
   static const cardBg = Color(0xFFD8E7EF);
@@ -52,8 +58,10 @@ class CaseDetailsScreen extends StatelessWidget {
 
             final data = snapshot.data!.data() ?? {};
 
-            final title = (data['title'] as String?) ?? 'Case';
             final status = ((data['status'] as String?) ?? 'active').toLowerCase();
+
+            // ✅ Display title = Case N (if provided)
+            final displayTitle = caseNumber != null ? "Case $caseNumber" : ((data['title'] as String?) ?? "Case");
 
             // ✅ Start = createdAt (best) then startDate then surgeryDate
             final startValue = data['createdAt'] ?? data['startDate'] ?? data['surgeryDate'];
@@ -95,7 +103,7 @@ class CaseDetailsScreen extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              title,
+                              displayTitle,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.dmSans(
@@ -153,7 +161,6 @@ class CaseDetailsScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
 
-                            // ✅ FIXED: show text
                             _InfoRow(
                               icon: Icons.calendar_today_outlined,
                               value: startDateText,
@@ -170,7 +177,6 @@ class CaseDetailsScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
 
-                            // ✅ FIXED: show text
                             _InfoRow(
                               icon: Icons.access_time,
                               value: lastUpdatedText,

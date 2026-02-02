@@ -104,7 +104,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
 
-// ✅ PageView (show image only on page 2)
+// ✅ PageView (show image on page 1 & 2)
                 PageView.builder(
                   controller: _controller,
                   itemCount: pages.length,
@@ -112,15 +112,41 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   itemBuilder: (context, i) {
                     return Stack(
                       children: [
-                        // Only page 2 (index 1) shows the image
+                        // PAGE 1 (index 0)
+                        if (i == 0)
+                          Align(
+                            alignment: Alignment.topCenter,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 22),
+                              child: Image.asset(
+                                "assets/images/onb11.png",
+                                height: 460,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+
+                        // PAGE 2 (index 1)
                         if (i == 1)
                           Align(
                             alignment: Alignment.topCenter,
                             child: Padding(
-                              padding: const EdgeInsets.only(top: 95), // adjust if needed
+                              padding: const EdgeInsets.only(top: 22),
                               child: Image.asset(
                                 "assets/images/onb22.png",
-                                height: 340, // adjust size
+                                height: 480,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        if (i == 2)
+                          Align(
+                            alignment: Alignment.topCenter,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 22),
+                              child: Image.asset(
+                                "assets/images/logo2.png",
+                                height: 420,
                                 fit: BoxFit.contain,
                               ),
                             ),
@@ -130,12 +156,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   },
                 ),
 
-
                 // ✅ Title + subtitle positions like Arc (lower-left)
                 Positioned(
                   left: 24,
                   right: 24,
-                  bottom: isLast ? 190 : 168, // give more air on last page
+                  bottom: isLast ? 150 : 130, // give more air on last page
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -439,7 +464,7 @@ class _BottomSignIn extends StatelessWidget {
           Text(
             "Already have an account? ",
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 18,
               fontWeight: FontWeight.w500,
               color: Colors.white.withOpacity(0.88),
             ),
@@ -449,7 +474,7 @@ class _BottomSignIn extends StatelessWidget {
             child: const Text(
               "Sign in",
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: accent,
               ),
