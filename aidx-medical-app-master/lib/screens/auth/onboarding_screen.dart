@@ -15,24 +15,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _controller = PageController();
   int _index = 0;
 
-  final pages = const <_OnbModel>[
+  static const int _total = 3;
+
+  final List<_OnbModel> pages = const [
     _OnbModel(
-      title: "What is Ratq?",
+      title: "Welcome to Ratq",
       subtitle:
-      "Ratq is a post-surgery wound monitoring app that helps patients track healing and watch for possible infection signs.",
-      imagePath: "assets/images/onb_1.png",
+      "Track your wound healing and get early infection risk signals with quick daily check-ins.",
+      buttonText: "Next",
     ),
     _OnbModel(
       title: "Daily check in seconds",
       subtitle:
-      "After creating an account, you will answer a quick questionnaire (WHQ) and take a photo of your wound to get an infection risk score.",
-      imagePath: "assets/images/onb_2.png",
+      "Answer the WHQ questionnaire and capture a wound photo to get an infection risk score.",
+      buttonText: "Next",
     ),
     _OnbModel(
-      title: "Dashboard & doctor report",
-      subtitle:
-      "View your dashboard, trends, and a summary report you can share with your doctor for better follow-up.",
-      imagePath: "assets/images/onb_3.png",
+      title: "Let’s Get Started!",
+      subtitle: "Sign in or create an account to begin.",
+      buttonText: "Get Started",
     ),
   ];
 
@@ -48,94 +49,130 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _next() async {
-    final isLast = _index == pages.length - 1;
+    final isLast = _index == _total - 1;
     if (isLast) {
       await _finish();
     } else {
       await _controller.nextPage(
-        duration: const Duration(milliseconds: 320),
+        duration: const Duration(milliseconds: 340),
         curve: Curves.easeOutCubic,
       );
     }
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isLast = _index == pages.length - 1;
+    final isLast = _index == _total - 1;
 
     return Scaffold(
       body: Stack(
         children: [
-          const _LiquidGlassBackground(),
+          const _LightLiquidGlassBackground(),
 
           SafeArea(
-            child: Column(
+            child: Stack(
               children: [
-                // Top bar: Close (X)
-                Padding(
-                  padding: const EdgeInsets.only(left: 10, right: 10, top: 6),
-                  child: Row(
-                    children: [
-                      _CircleIconButton(
-                        icon: Icons.close_rounded,
-                        onTap: _finish,
+                // ✅ top progress lines (FULL WIDTH like Arc)
+                Positioned(
+                  left: 18,
+                  right: 18,
+                  top: 15,
+                  child: _TopProgressFullWidth(index: _index, total: _total),
+                ),
+
+                // ✅ Skip bigger (top-right)
+                Positioned(
+                  right: 16,
+                  top: 10,
+                  child: TextButton(
+                    onPressed: _finish,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white.withOpacity(0.96),
+                      textStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const Spacer(),
-                    ],
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    ),
+                    child: const Text("Skip"),
                   ),
                 ),
 
-                // Top Logos row (same vibe as your reference)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
-                  child: Row(
+                // ✅ PageView (no images now — just to change text)
+                PageView.builder(
+                  controller: _controller,
+                  itemCount: pages.length,
+                  onPageChanged: (i) => setState(() => _index = i),
+                  itemBuilder: (_, __) => const SizedBox.expand(),
+                ),
+
+                // ✅ Title + subtitle positions like Arc (lower-left)
+                Positioned(
+                  left: 24,
+                  right: 24,
+                  bottom: isLast ? 190 : 168, // give more air on last page
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // watermark big
-                      Opacity(
-                        opacity: 0.22,
-                        child: Image.asset(
-                          "assets/images/logo1.png",
-                          height: 92,
+                      Text(
+                        pages[_index].title,
+                        style: const TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.w900,
+                          height: 1.02,
+                          color: Colors.white,
                         ),
                       ),
-                      const Spacer(),
-                      Opacity(
-                        opacity: 0.95,
-                        child: Image.asset(
-                          "assets/images/logo2.png",
-                          height: 64,
+                      const SizedBox(height: 14),
+                      Text(
+                        pages[_index].subtitle,
+                        style: TextStyle(
+                          fontSize: 20,
+                          height: 1.55,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white.withOpacity(0.82),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 8),
-
-                // Center illustration (keeps same position/size)
-                Expanded(
-                  child: PageView.builder(
-                    controller: _controller,
-                    itemCount: pages.length,
-                    onPageChanged: (i) => setState(() => _index = i),
-                    itemBuilder: (context, i) {
-                      return _CenterIllustration(imagePath: pages[i].imagePath);
-                    },
+                // ✅ Button placement:
+                // - Next: bottom-right small outline pill
+                // - Get Started: BIG centered button (like Arc)
+                Positioned(
+                  left: 22,
+                  right: 22,
+                  bottom: 78,
+                  child: isLast
+                      ? _BigCenterButton(
+                    text: pages[_index].buttonText,
+                    onTap: _next,
+                  )
+                      : Align(
+                    alignment: Alignment.centerRight,
+                    child: _OutlinePillButton(
+                      text: pages[_index].buttonText,
+                      onTap: _next,
+                    ),
                   ),
                 ),
 
-                // Bottom glass card
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-                  child: _BottomGlassCard(
-                    title: pages[_index].title,
-                    subtitle: pages[_index].subtitle,
-                    index: _index,
-                    total: pages.length,
-                    isLast: isLast,
-                    onSkip: _finish,
-                    onNext: _next,
+                // ✅ Bottom "Already have an account? Sign in"
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 28,
+                  child: Center(
+                    child: _BottomSignIn(
+                      onSignIn: _finish,
+                    ),
                   ),
                 ),
               ],
@@ -147,87 +184,84 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-/* ---------------- Models ---------------- */
+/* ---------------- model ---------------- */
 
 class _OnbModel {
   final String title;
   final String subtitle;
-  final String imagePath;
+  final String buttonText;
 
   const _OnbModel({
     required this.title,
     required this.subtitle,
-    required this.imagePath,
+    required this.buttonText,
   });
 }
 
-/* ---------------- Background (NO CHESS) ---------------- */
+/* ---------------- background (LIGHT white-blue liquid glass) ---------------- */
 
-class _LiquidGlassBackground extends StatelessWidget {
-  const _LiquidGlassBackground();
+class _LightLiquidGlassBackground extends StatelessWidget {
+  const _LightLiquidGlassBackground();
+
+  // base palette (light, not dark)
+  static const Color a = Color(0xFFAED7EA);
+  static const Color b = Color(0xFF86C2DA);
+  static const Color c = Color(0xFF63A2BF); // your main
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // base gradient
+        // bright gradient base
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                Color(0xFF173343),
-                Color(0xFF1F4257),
-                Color(0xFF102634),
-              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
+              colors: [a, b, c],
             ),
           ),
         ),
 
-        // soft blobs (liquid)
+        // soft blobs (white glass)
         Positioned(
-          top: -120,
-          left: -90,
-          child: _Blob(
-            size: 320,
-            color: const Color(0xFF63A2BF).withOpacity(0.35),
-          ),
+          top: -140,
+          left: -140,
+          child: _Blob(size: 420, color: Colors.white.withOpacity(0.24)),
         ),
         Positioned(
           top: 120,
-          right: -140,
-          child: _Blob(
-            size: 360,
-            color: Colors.white.withOpacity(0.12),
-          ),
+          right: -180,
+          child: _Blob(size: 520, color: Colors.white.withOpacity(0.16)),
         ),
         Positioned(
-          bottom: -150,
-          left: -80,
-          child: _Blob(
-            size: 380,
-            color: const Color(0xFF3B7691).withOpacity(0.28),
-          ),
+          bottom: -220,
+          left: -160,
+          child: _Blob(size: 560, color: Colors.white.withOpacity(0.18)),
+        ),
+        Positioned(
+          bottom: 40,
+          right: -120,
+          child: _Blob(size: 360, color: Colors.white.withOpacity(0.10)),
         ),
 
-        // blur the blobs so it looks like liquid glass
+        // blur to make it liquid/glass
         BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+          filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
           child: Container(color: Colors.transparent),
         ),
 
-        // subtle vignette (adds depth)
+        // gentle vignette + gloss
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                Colors.black.withOpacity(0.30),
-                Colors.transparent,
-                Colors.black.withOpacity(0.25),
-              ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
+              colors: [
+                Colors.white.withOpacity(0.06),
+                Colors.transparent,
+                Colors.black.withOpacity(0.08),
+              ],
             ),
           ),
         ),
@@ -246,189 +280,50 @@ class _Blob extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }
 
-/* ---------------- UI Pieces ---------------- */
+/* ---------------- top progress lines (FULL WIDTH) ---------------- */
 
-class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipOval(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.14),
-              border: Border.all(color: Colors.white.withOpacity(0.22)),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: Colors.white.withOpacity(0.92), size: 20),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CenterIllustration extends StatelessWidget {
-  const _CenterIllustration({required this.imagePath});
-  final String imagePath;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 6, 18, 10),
-        child: Image.asset(
-          imagePath,
-          height: 170,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Icon(
-            Icons.image_not_supported,
-            color: Colors.white.withOpacity(0.7),
-            size: 42,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomGlassCard extends StatelessWidget {
-  const _BottomGlassCard({
-    required this.title,
-    required this.subtitle,
-    required this.index,
-    required this.total,
-    required this.isLast,
-    required this.onSkip,
-    required this.onNext,
-  });
-
-  final String title;
-  final String subtitle;
+class _TopProgressFullWidth extends StatelessWidget {
+  const _TopProgressFullWidth({required this.index, required this.total});
   final int index;
   final int total;
-  final bool isLast;
-  final VoidCallback onSkip;
-  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            // glass fill (no pattern)
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withOpacity(0.22),
-                Colors.white.withOpacity(0.14),
-              ],
+    return Row(
+      children: List.generate(total, (i) {
+        final active = i == index;
+        return Expanded(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            margin: EdgeInsets.only(right: i == total - 1 ? 0 : 10),
+            height: 4,
+            decoration: BoxDecoration(
+              color: active
+                  ? Colors.white.withOpacity(0.95)
+                  : Colors.white.withOpacity(0.40),
+              borderRadius: BorderRadius.circular(999),
             ),
-            border: Border.all(color: Colors.white.withOpacity(0.22)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x22000000),
-                blurRadius: 22,
-                offset: Offset(0, 12),
-              ),
-            ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white.withOpacity(0.98),
-                  height: 1.08,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12.8,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withOpacity(0.78),
-                  height: 1.35,
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // dots
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(total, (i) {
-                  final active = i == index;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: active ? 18 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: active
-                          ? Colors.white.withOpacity(0.95)
-                          : Colors.white.withOpacity(0.30),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  );
-                }),
-              ),
-
-              const SizedBox(height: 14),
-
-              Row(
-                children: [
-                  if (!isLast)
-                    _GlassTextBtn(text: "Skip", onTap: onSkip)
-                  else
-                    const SizedBox(width: 56),
-                  const Spacer(),
-                  _PillActionBtn(
-                    text: isLast ? "Get started" : "Next",
-                    onTap: onNext,
-                    big: isLast,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }
 
-class _GlassTextBtn extends StatelessWidget {
-  const _GlassTextBtn({required this.text, required this.onTap});
+/* ---------------- buttons ---------------- */
+
+class _OutlinePillButton extends StatelessWidget {
+  const _OutlinePillButton({
+    required this.text,
+    required this.onTap,
+  });
+
   final String text;
   final VoidCallback onTap;
 
@@ -436,70 +331,112 @@ class _GlassTextBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.85),
-            fontWeight: FontWeight.w700,
-          ),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withOpacity(0.88), width: 1.4),
+          color: Colors.white.withOpacity(0.08),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 14.5,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 20),
+          ],
         ),
       ),
     );
   }
 }
 
-class _PillActionBtn extends StatelessWidget {
-  const _PillActionBtn({
+class _BigCenterButton extends StatelessWidget {
+  const _BigCenterButton({
     required this.text,
     required this.onTap,
-    this.big = false,
   });
 
   final String text;
   final VoidCallback onTap;
-  final bool big;
 
   @override
   Widget build(BuildContext context) {
-    final h = big ? 52.0 : 46.0;
-    final padX = big ? 26.0 : 20.0;
-
-    return ClipRRect(
+    return InkWell(
+      onTap: onTap,
       borderRadius: BorderRadius.circular(999),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            height: h,
-            padding: EdgeInsets.symmetric(horizontal: padX),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              // visible pill
-              color: Colors.white.withOpacity(0.86),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: Colors.white.withOpacity(0.95), width: 1),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x18000000),
-                  blurRadius: 12,
-                  offset: Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Text(
+      child: Container(
+        height: 54,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.6),
+          color: Colors.white.withOpacity(0.10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
               text,
               style: const TextStyle(
-                color: Color(0xFF0E232E),
-                fontWeight: FontWeight.w900,
-                fontSize: 14.5,
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/* ---------------- bottom sign in ---------------- */
+
+class _BottomSignIn extends StatelessWidget {
+  const _BottomSignIn({required this.onSignIn});
+  final VoidCallback onSignIn;
+
+  static const Color accent = Color(0xFF0F5F7A); // readable on light-blue bg
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            "Already have an account? ",
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: Colors.white.withOpacity(0.88),
+            ),
+          ),
+          GestureDetector(
+            onTap: onSignIn,
+            child: const Text(
+              "Sign in",
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: accent,
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

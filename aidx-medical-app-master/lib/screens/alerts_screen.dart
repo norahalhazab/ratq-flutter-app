@@ -11,6 +11,9 @@ class AlertsScreen extends StatelessWidget {
   static const muted = Color(0xFF94A3B8);
   static const bodyMuted = Color(0xFF64748B);
 
+  // ✅ must match AppBottomNav height in bottom_nav.dart
+  static const double _navBarHeight = 78;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -18,8 +21,8 @@ class AlertsScreen extends StatelessWidget {
 
       body: SafeArea(
         child: Padding(
-          // ✅ خلينا padding السفلي أكبر عشان ما يصير overlap مع البار
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 110),
+          // ✅ dynamic bottom padding so no overlap + bar stays touching bottom
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 18 + _navBarHeight),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -85,12 +88,11 @@ class AlertsScreen extends StatelessWidget {
         ),
       ),
 
-      // ✅ بدون Padding عشان ما يطلع Floating
+      // ✅ NO padding: touches the end
       bottomNavigationBar: AppBottomNav(
-        currentIndex: 3, // Alerts selected
-        // لو تبين زر + يفتح CreateCase
+        currentIndex: 3,
         onNewTap: () {
-          // اتركيه فاضي مؤقتًا أو افتحي create screen هنا
+          // TODO: open CreateCaseScreen if you want
         },
       ),
     );

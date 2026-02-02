@@ -18,6 +18,10 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   static const Color primary = Color(0xFF3B7691);
 
+  // ✅ must match AppBottomNav height in bottom_nav.dart
+  // (your latest nav bar was 78)
+  static const double _navBarHeight = 78;
+
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
@@ -42,8 +46,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       body: SafeArea(
         child: SingleChildScrollView(
-          // ✅ نخلي مساحة تحت عشان ما يتداخل مع البار
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 110),
+          // ✅ dynamic bottom space so it never overlaps with the nav bar
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18 + _navBarHeight),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -207,11 +211,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
 
-      // ✅ بدون Padding عشان ما يطلع Floating
+      // ✅ NO padding: touches the end
       bottomNavigationBar: AppBottomNav(
         currentIndex: 4,
         onNewTap: () {
-          // لو تبين + يفتح CreateCaseScreen حطيه هنا
+          // TODO: open CreateCaseScreen if you want
         },
       ),
     );

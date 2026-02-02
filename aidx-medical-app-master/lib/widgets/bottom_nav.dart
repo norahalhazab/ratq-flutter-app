@@ -13,7 +13,8 @@ class AppBottomNav extends StatefulWidget {
     this.onNewTap,
   });
 
-  final int currentIndex; // 0 home, 1 cases, 2 new, 3 alerts, 4 settings
+  /// 0 home, 1 cases, 2 new, 3 alerts, 4 settings
+  final int currentIndex;
   final VoidCallback? onNewTap;
 
   @override
@@ -24,20 +25,29 @@ class _AppBottomNavState extends State<AppBottomNav> {
   late int _index;
 
   // sizing
-  static const double _barHeight = 92;
-  static const double _radius = 22;
+  static const double _barH = 78;
+  static const double _radius = 24;
+
+  // highlight "square" size
+  static const double _pillW = 54;
+  static const double _pillH = 54;
+  static const double _pillR = 18;
 
   // colors
-  static const Color primary = Color(0xFF3B7691); // your blue
-  static const Color iconGray = Color(0xFFBFC7D1); // light gray
-  static const Color outline = Color(0x22000000);
+  static const Color barWhite = Colors.white;
+  static const Color iconColor = Color(0xFF0F172A); // unselected (requested)
+  static const Color outline = Color(0x11000000);
 
+  static const Color blueA = Color(0xFF63A2BF); // glossy base (requested family)
+  static const Color blueB = Color(0xFF3B7691); // deeper blue from your theme
+
+  // ✅ hollow icons (outlined)
   static const _tabs = <_TabItem>[
-    _TabItem(icon: Icons.home_rounded, label: "Home"),
-    _TabItem(icon: Icons.folder_rounded, label: "Cases"),
-    _TabItem(icon: Icons.add_rounded, label: "New"),
-    _TabItem(icon: Icons.notifications_rounded, label: "Alerts"),
-    _TabItem(icon: Icons.person_rounded, label: "Profile"),
+    _TabItem(icon: Icons.home_outlined),
+    _TabItem(icon: Icons.folder_outlined),
+    _TabItem(icon: Icons.add),
+    _TabItem(icon: Icons.notifications_none_outlined),
+    _TabItem(icon: Icons.person_outline),
   ];
 
   @override
@@ -76,111 +86,171 @@ class _AppBottomNavState extends State<AppBottomNav> {
 
   @override
   Widget build(BuildContext context) {
-    // IMPORTANT: put this directly in Scaffold.bottomNavigationBar
+    // ✅ touches the bottom edge (no SafeArea bottom here)
     return Material(
       color: Colors.transparent,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: _barHeight,
-          width: double.infinity,
-          child: LayoutBuilder(
-            builder: (context, c) {
-              final slotW = c.maxWidth / _tabs.length;
+      child: SizedBox(
+        height: _barH,
+        width: double.infinity,
+        child: LayoutBuilder(
+          builder: (context, c) {
+            final w = c.maxWidth;
+            final slotW = w / _tabs.length;
 
-              // indicator sizes (like photo)
-              const indicatorW = 60.0;
-              const indicatorH = 5.0;
+            final left = (_index * slotW) + (slotW - _pillW) / 2;
+            final top = (_barH - _pillH) / 2;
 
-              final indicatorLeft = (_index * slotW) + (slotW - indicatorW) / 2;
-
-              return Stack(
-                children: [
-                  // White bar background
-                  ClipRRect(
+            return Stack(
+              children: [
+                // Bar background
+                Container(
+                  height: _barH,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: barWhite,
                     borderRadius: BorderRadius.circular(_radius),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        height: _barHeight,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(_radius),
-                          border: Border.all(color: outline, width: 1),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x14000000),
-                              blurRadius: 18,
-                              offset: Offset(0, 10),
-                            ),
-                          ],
-                        ),
+                    border: Border.all(color: outline, width: 1),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x14000000),
+                        blurRadius: 18,
+                        offset: Offset(0, 10),
                       ),
-                    ),
+                    ],
                   ),
+                ),
 
-                  // ✅ Top indicator line
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 320),
-                    curve: Curves.easeOutCubic,
-                    left: indicatorLeft.clamp(8.0, c.maxWidth - indicatorW - 8.0),
-                    top: 6,
-                    child: Container(
-                      width: indicatorW,
-                      height: indicatorH,
-                      decoration: BoxDecoration(
-                        color: primary,
+                // ✅ glossy liquid blue "square" highlight
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 420),
+                  curve: Curves.easeOutCubic,
+                  left: left.clamp(10, w - _pillW - 10),
+                  top: top,
+                  child: _GlossySquircle(
+                    width: _pillW,
+                    height: _pillH,
+                    radius: _pillR,
+                  ),
+                ),
+
+                // icons
+                Row(
+                  children: List.generate(_tabs.length, (i) {
+                    final selected = i == _index;
+
+                    return Expanded(
+                      child: InkWell(
+                        onTap: () => _go(i),
                         borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-
-                  // Tabs
-                  Row(
-                    children: List.generate(_tabs.length, (i) {
-                      final selected = i == _index;
-
-                      return Expanded(
-                        child: InkWell(
-                          onTap: () => _go(i),
-                          borderRadius: BorderRadius.circular(999),
-                          child: SizedBox(
-                            height: _barHeight,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const SizedBox(height: 8), // space under indicator
-                                Icon(
-                                  _tabs[i].icon,
-                                  size: 30,
-                                  color: selected ? primary : iconGray,
-                                ),
-                                const SizedBox(height: 8),
-                                AnimatedOpacity(
-                                  duration: const Duration(milliseconds: 200),
-                                  opacity: selected ? 1 : 0,
-                                  child: Text(
-                                    _tabs[i].label,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFFBFC7D1),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                              ],
+                        child: SizedBox(
+                          height: _barH,
+                          child: Center(
+                            child: AnimatedScale(
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutBack,
+                              scale: selected ? 1.06 : 1.0,
+                              child: Icon(
+                                _tabs[i].icon,
+                                size: 26,
+                                color: selected ? Colors.white : iconColor,
+                              ),
                             ),
                           ),
                         ),
-                      );
-                    }),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/* ---------- glossy squircle ---------- */
+
+class _GlossySquircle extends StatelessWidget {
+  const _GlossySquircle({
+    required this.width,
+    required this.height,
+    required this.radius,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+
+  static const Color blue = Color(0xFF63A2BF);
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Stack(
+          children: [
+            // base blue gradient (liquid-ish)
+            Container(
+              width: width,
+              height: height,
+              decoration: BoxDecoration(
+                color: blue, // ✅ بدون gradient
+                borderRadius: BorderRadius.circular(radius),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 16,
+                    offset: Offset(0, 10),
                   ),
                 ],
-              );
-            },
-          ),
+              ),
+            ),
+
+            // glossy highlight streak
+            Positioned(
+              top: -10,
+              left: -12,
+              child: Transform.rotate(
+                angle: -0.35,
+                child: Container(
+                  width: width * 1.2,
+                  height: height * 0.55,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(radius),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.55),
+                        Colors.white.withOpacity(0.00),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // subtle inner border for “gloss”
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(radius),
+                  border: Border.all(color: Colors.white.withOpacity(0.28), width: 1),
+                ),
+              ),
+            ),
+
+            // tiny blur overlay to make it feel “liquid”
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -190,14 +260,13 @@ class _AppBottomNavState extends State<AppBottomNav> {
 /* ---------- model ---------- */
 class _TabItem {
   final IconData icon;
-  final String label;
-  const _TabItem({required this.icon, required this.label});
+  const _TabItem({required this.icon});
 }
 
 /* ---------- route ---------- */
 PageRouteBuilder _route(Widget page) {
   return PageRouteBuilder(
-    transitionDuration: const Duration(milliseconds: 220),
+    transitionDuration: const Duration(milliseconds: 180),
     pageBuilder: (_, __, ___) => page,
     transitionsBuilder: (_, a, __, child) {
       return FadeTransition(
