@@ -46,7 +46,6 @@ class CasesScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: bg,
-
       body: SafeArea(
         child: Column(
           children: [
@@ -67,7 +66,9 @@ class CasesScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const CreateCaseScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const CreateCaseScreen(),
+                        ),
                       );
                     },
                   ),
@@ -112,7 +113,9 @@ class CasesScreen extends StatelessWidget {
                 stream: casesQuery.snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return _ErrorState(message: "Error loading cases: ${snapshot.error}");
+                    return _ErrorState(
+                      message: "Error loading cases: ${snapshot.error}",
+                    );
                   }
 
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -128,7 +131,9 @@ class CasesScreen extends StatelessWidget {
                       onCreate: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const CreateCaseScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const CreateCaseScreen(),
+                          ),
                         );
                       },
                     );
@@ -155,7 +160,8 @@ class CasesScreen extends StatelessWidget {
 
                   for (final d in docs) {
                     final data = d.data();
-                    final status = ((data['status'] as String?) ?? 'active').toLowerCase();
+                    final status =
+                    ((data['status'] as String?) ?? 'active').toLowerCase();
                     if (status == 'closed') {
                       closed.add(d);
                     } else {
@@ -213,8 +219,14 @@ class CasesScreen extends StatelessWidget {
                           final caseNo = caseNumberById[caseId] ?? 0;
                           final title = caseNo > 0 ? "Case $caseNo" : "Case";
 
-                          final startDate = _formatDate(data['startDate'] ?? data['surgeryDate'] ?? data['createdAt']);
-                          final lastUpdated = _formatDate(data['lastUpdated'] ?? data['createdAt']);
+                          final startDate = _formatDate(
+                            data['startDate'] ??
+                                data['surgeryDate'] ??
+                                data['createdAt'],
+                          );
+                          final lastUpdated = _formatDate(
+                            data['lastUpdated'] ?? data['createdAt'],
+                          );
                           final score = (data['infectionScore']?.toString()) ?? "--";
 
                           final tagText = (data['tagText'] as String?) ?? "Active";
@@ -233,19 +245,34 @@ class CasesScreen extends StatelessWidget {
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: isDanger
-                                    ? const [Color(0xFFBF121D), Color(0xFFF8FAFC)]
-                                    : const [Color(0xFF465467), Color(0xFFA4C9DA)],
+                                    ? const [
+                                  Color(0xFFBF121D),
+                                  Color(0xFFF8FAFC)
+                                ]
+                                    : const [
+                                  Color(0xFF465467),
+                                  Color(0xFFA4C9DA)
+                                ],
                               ),
                               title: title,
-                              day: _computeDayLabel(data['startDate'] ?? data['createdAt'] ?? data['surgeryDate']),
+                              day: _computeDayLabel(
+                                data['startDate'] ??
+                                    data['createdAt'] ??
+                                    data['surgeryDate'],
+                              ),
                               startDate: startDate,
                               lastUpdated: lastUpdated,
                               score: score,
+
+                              // ✅ FIX: pass caseNumber to details screen
                               onDashboard: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => CaseDetailsScreen(caseId: caseId),
+                                    builder: (_) => CaseDetailsScreen(
+                                      caseId: caseId,
+                                      caseNumber: caseNo,
+                                    ),
                                   ),
                                 );
                               },
@@ -253,7 +280,10 @@ class CasesScreen extends StatelessWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => CaseDetailsScreen(caseId: caseId),
+                                    builder: (_) => CaseDetailsScreen(
+                                      caseId: caseId,
+                                      caseNumber: caseNo,
+                                    ),
                                   ),
                                 );
                               },
@@ -309,8 +339,14 @@ class CasesScreen extends StatelessWidget {
                           final caseNo = caseNumberById[caseId] ?? 0;
                           final title = caseNo > 0 ? "Case $caseNo" : "Case";
 
-                          final startDate = _formatDate(data['startDate'] ?? data['surgeryDate'] ?? data['createdAt']);
-                          final lastUpdated = _formatDate(data['lastUpdated'] ?? data['createdAt']);
+                          final startDate = _formatDate(
+                            data['startDate'] ??
+                                data['surgeryDate'] ??
+                                data['createdAt'],
+                          );
+                          final lastUpdated = _formatDate(
+                            data['lastUpdated'] ?? data['createdAt'],
+                          );
                           final score = (data['infectionScore']?.toString()) ?? "--";
 
                           return Padding(
@@ -328,15 +364,24 @@ class CasesScreen extends StatelessWidget {
                                 colors: [Color(0xFF475569), Color(0xFFE2E8F0)],
                               ),
                               title: title,
-                              day: _computeDayLabel(data['startDate'] ?? data['createdAt'] ?? data['surgeryDate']),
+                              day: _computeDayLabel(
+                                data['startDate'] ??
+                                    data['createdAt'] ??
+                                    data['surgeryDate'],
+                              ),
                               startDate: startDate,
                               lastUpdated: lastUpdated,
                               score: score,
+
+                              // ✅ FIX: pass caseNumber to details screen
                               onDashboard: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => CaseDetailsScreen(caseId: caseId),
+                                    builder: (_) => CaseDetailsScreen(
+                                      caseId: caseId,
+                                      caseNumber: caseNo,
+                                    ),
                                   ),
                                 );
                               },
@@ -344,7 +389,10 @@ class CasesScreen extends StatelessWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => CaseDetailsScreen(caseId: caseId),
+                                    builder: (_) => CaseDetailsScreen(
+                                      caseId: caseId,
+                                      caseNumber: caseNo,
+                                    ),
                                   ),
                                 );
                               },
@@ -382,7 +430,6 @@ bool _isDangerTag(String tag) {
 }
 
 DateTime _bestCaseDate(Map<String, dynamic> data) {
-  // Oldest ordering for numbering
   final dt = _toDate(data['createdAt']) ??
       _toDate(data['startDate']) ??
       _toDate(data['surgeryDate']);

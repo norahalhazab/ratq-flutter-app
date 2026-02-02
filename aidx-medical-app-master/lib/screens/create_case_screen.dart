@@ -43,7 +43,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
       lastDate: now,
       initialDate: _surgeryDate ?? now,
       builder: (context, child) {
-        // Theme the date picker to match your app
         final base = Theme.of(context);
         return Theme(
           data: base.copyWith(
@@ -59,7 +58,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                 textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
               ),
             ),
-            // ✅ FIX: DialogThemeData (not DialogTheme)
             dialogTheme: DialogThemeData(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(26),
@@ -72,6 +70,26 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
     );
 
     if (picked != null) setState(() => _surgeryDate = picked);
+  }
+
+  // ✅ NEW: Get next case number = max(caseNumber) + 1
+  Future<int> _getNextCaseNumber(String uid) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('cases')
+        .orderBy('caseNumber', descending: true)
+        .limit(1)
+        .get();
+
+    if (snap.docs.isEmpty) return 1;
+
+    final data = snap.docs.first.data();
+    final raw = data['caseNumber'];
+
+    if (raw is int) return raw + 1;
+    final parsed = int.tryParse('$raw');
+    return (parsed ?? 0) + 1;
   }
 
   Future<void> _createCase() async {
@@ -89,13 +107,17 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
     setState(() => _loading = true);
 
     try {
-      // ✅ get docRef so we can pass caseId to next screen
+      // ✅ compute next number
+      final nextNo = await _getNextCaseNumber(user.uid);
+
+      // ✅ create case with caseNumber saved
       final docRef = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('cases')
           .add({
-        'title': 'Case ${DateTime.now().millisecondsSinceEpoch}',
+        'caseNumber': nextNo, // ✅ IMPORTANT
+        'title': 'Case $nextNo', // ✅ optional but recommended
         'status': 'active',
         'infectionScore': 0,
         'surgeryDate': Timestamp.fromDate(_surgeryDate!),
@@ -107,7 +129,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
       if (!mounted) return;
       _toast("Case created ✅");
 
-      // ✅ Go to "Case Created Start" page
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -129,25 +150,19 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-
-      // ✅ keep nav touching bottom (no padding wrapper here)
       bottomNavigationBar: AppBottomNav(
         currentIndex: 2,
         onNewTap: () {}, // you're already here
       ),
-
       body: Stack(
         children: [
           const _SoftGlassBackground(),
-
           SafeArea(
             child: SingleChildScrollView(
-              // leave enough space so content doesn't go under nav
               padding: const EdgeInsets.fromLTRB(18, 10, 18, 118),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top title (minimal, clean)
                   SizedBox(
                     height: 44,
                     child: Center(
@@ -161,10 +176,8 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 8),
 
-                  // Header
                   _GlassCard(
                     radius: 24,
                     child: Padding(
@@ -198,7 +211,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Section label
                   Padding(
                     padding: const EdgeInsets.only(left: 6, bottom: 8),
                     child: Text(
@@ -211,7 +223,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                     ),
                   ),
 
-                  // Date hint
                   Padding(
                     padding: const EdgeInsets.only(left: 6, bottom: 12),
                     child: Text(
@@ -224,7 +235,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                     ),
                   ),
 
-                  // Date boxes (liquid glass)
                   Row(
                     children: [
                       Expanded(
@@ -255,12 +265,11 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
                   const SizedBox(height: 18),
 
-                  // ✅ NEW: FAQ glass card (View more + arrow)
+                  // ✅ FAQ
                   const _FaqGlassCard(),
 
                   const SizedBox(height: 18),
 
-                  // CTA button (glass outline / modern)
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -310,7 +319,6 @@ class _SoftGlassBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Base light gradient
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -324,8 +332,6 @@ class _SoftGlassBackground extends StatelessWidget {
             ),
           ),
         ),
-
-        // Soft blobs
         Positioned(
           top: -140,
           left: -120,
@@ -350,8 +356,6 @@ class _SoftGlassBackground extends StatelessWidget {
             color: const Color(0xFF3B7691).withOpacity(0.10),
           ),
         ),
-
-        // Blur layer
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
           child: Container(color: Colors.transparent),
@@ -569,7 +573,6 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
 
   static const Color primary = Color(0xFF3B7691);
   static const Color titleColor = Color(0xFF0F172A);
-  static const Color bodyMuted = Color(0xFF64748B);
 
   @override
   Widget build(BuildContext context) {
@@ -591,7 +594,6 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                     ),
                   ),
                 ),
-
                 TextButton(
                   onPressed: () => setState(() => _expanded = !_expanded),
                   style: TextButton.styleFrom(
@@ -607,9 +609,7 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                   ),
                   child: Text(_expanded ? "View less" : "View more"),
                 ),
-
                 const SizedBox(width: 6),
-
                 InkWell(
                   onTap: () => setState(() => _expanded = !_expanded),
                   borderRadius: BorderRadius.circular(999),
@@ -632,7 +632,6 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                 ),
               ],
             ),
-
             AnimatedCrossFade(
               firstChild: const SizedBox(height: 0),
               secondChild: Padding(
@@ -647,7 +646,7 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                     SizedBox(height: 8),
                     _FaqLine(
                       icon: Icons.photo_camera_outlined,
-                      text: "Capture wound images ",
+                      text: "Capture wound images",
                     ),
                     SizedBox(height: 8),
                     _FaqLine(
