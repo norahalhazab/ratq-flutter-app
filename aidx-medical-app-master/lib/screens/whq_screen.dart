@@ -23,29 +23,57 @@ class _WhqScreenState extends State<WhqScreen> {
 
   bool _isNavigating = false;
 
-  static const likertOptions = ["Not at all", "A little bit", "Quite a bit", "A lot"];
+  static const likertOptions = ["Not at all", "A little", "A lot"];
   static const yesNoOptions = ["Yes", "No"];
 
   late final List<_Question> questions = [
-    _Question(id: "q1", text: "Was the area around the wound warmer than the surrounding skin?", type: _QType.likert4),
-    _Question(id: "q2", text: "Has any part of the wound leaked blood-stained fluid? (haemoserous exudate)", type: _QType.likert4),
-    _Question(id: "q3", text: "Have the edges of any part of the wound separated/gaped open on their own accord? (spontaneous dehiscence)", type: _QType.likert4),
-    _Question(id: "q4", text: "If yes, Did the deeper tissue also separate?", type: _QType.likert4),
-    _Question(id: "q5", text: "Has the area around the wound become swollen?", type: _QType.likert4),
-    _Question(id: "q6", text: "Has the wound been smelly?", type: _QType.likert4),
-    _Question(id: "q7", text: "Has the wound been painful to touch?", type: _QType.likert4),
+    _Question(id: "q1",
+        text: "Was the area around the wound warmer than the surrounding skin?",
+        type: _QType.likert3),
+    _Question(id: "q2",
+        text: "Has any part of the wound leaked blood-stained fluid?",
+        type: _QType.likert3),
+    _Question(id: "q3",
+        text: "Have the edges of any part of the wound separated or gaped open of their accord?",
+        type: _QType.likert3),
+    _Question(id: "q4",
+        text: "If the wound edges opened: Did the flesh beneath the skin or the inside sutures also separate?",
+        type: _QType.likert3),
+    _Question(id: "q5",
+        text: "Has the area around the wound become swollen?",
+        type: _QType.likert3),
     _Question(
-      id: "q8",
-      text: "Have you sought advice because of a problem with your wound, other than at a planned follow-up appointment?",
-      type: _QType.yesNo,
-    ),
-    _Question(id: "q9", text: "Has anything been put on the skin to cover the wound? (dressing)", type: _QType.yesNo),
-    _Question(id: "q10", text: "Have you been back into hospital for treatment of a problem with your wound?", type: _QType.yesNo),
-    _Question(id: "q11", text: "Have you been back into hospital for treatment of a problem with your wound?", type: _QType.yesNo),
-    _Question(id: "q12", text: "Have you been given antibiotics for a problem with your wound?", type: _QType.yesNo),
-    _Question(id: "q13", text: "Have the edges of your wound been deliberately separated by a doctor or nurse?", type: _QType.yesNo),
-    _Question(id: "q14", text: "Has your wound been scraped or cut to remove any unwanted tissue?", type: _QType.yesNo),
-    _Question(id: "q15", text: "Has your wound been drained?", type: _QType.yesNo),
+        id: "q6", text: "Has the wound been smelly?", type: _QType.likert3),
+    _Question(id: "q7",
+        text: "Has the wound been painful to touch?",
+        type: _QType.likert3),
+    _Question(id: "q8",
+        text: "Have you had, or felt like you have had, a raised temperature or fever?",
+        type: _QType.yesNo),
+    _Question(id: "q9",
+        text: "Have you sought advice because of a problem with your wound, other than at a planned follow-up appointment?",
+        type: _QType.yesNo),
+    _Question(id: "q10",
+        text: "Has anything been put on the skin to cover the wound? (dressing)",
+        type: _QType.yesNo),
+    _Question(id: "q11",
+        text: "Have you been back into hospital for a problem with your wound?",
+        type: _QType.yesNo),
+    _Question(id: "q12",
+        text: "Have you been given medicines (antibiotics) for a problem with your wound?",
+        type: _QType.yesNo),
+    _Question(id: "q13",
+        text: "Have the edges of your wound been separated by a doctor or nurse?",
+        type: _QType.yesNo),
+    _Question(id: "q14",
+        text: "Has your wound been scraped or cut to remove any unwanted flesh?",
+        type: _QType.yesNo),
+    _Question(id: "q15",
+        text: "Has thick, yellow or green fluid (pus) been drained from your wound by a doctor or nurse?",
+        type: _QType.yesNo),
+    _Question(id: "q16",
+        text: "Have you had to go back to the operating room for treatment of a problem with your wound?",
+        type: _QType.yesNo),
   ];
 
   int index = 0;
@@ -60,7 +88,7 @@ class _WhqScreenState extends State<WhqScreen> {
     }
 
     final q = questions[index];
-    final options = q.type == _QType.likert4 ? likertOptions : yesNoOptions;
+    final options = q.type == _QType.likert3 ? likertOptions : yesNoOptions;
 
     final remaining = (questions.length - 1) - index;
     final bool isFirst = index == 0;
@@ -97,10 +125,12 @@ class _WhqScreenState extends State<WhqScreen> {
                       width: 120,
                       height: 44,
                       child: OutlinedButton(
-                        onPressed: saving ? null : () => setState(() => index--),
+                        onPressed: saving ? null : () =>
+                            setState(() => index--),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: primary, width: 1.2),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999)),
                         ),
                         child: Text(
                           "Previous",
@@ -120,10 +150,12 @@ class _WhqScreenState extends State<WhqScreen> {
                       width: 120,
                       height: 44,
                       child: OutlinedButton(
-                        onPressed: (saving || !hasAnswer) ? null : () async => _submitAllAnswers(user.uid),
+                        onPressed: (saving || !hasAnswer) ? null : () async =>
+                            _submitAllAnswers(user.uid),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: primary, width: 1.2),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999)),
                         ),
                         child: saving
                             ? const SizedBox(
@@ -163,7 +195,8 @@ class _WhqScreenState extends State<WhqScreen> {
               // Back
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF0F172A)),
+                icon: const Icon(Icons.arrow_back_ios_new, size: 18,
+                    color: Color(0xFF0F172A)),
               ),
               const SizedBox(height: 6),
 
@@ -195,7 +228,8 @@ class _WhqScreenState extends State<WhqScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.45),
                         borderRadius: BorderRadius.circular(14),
@@ -237,7 +271,8 @@ class _WhqScreenState extends State<WhqScreen> {
                                 _isNavigating = true;
                               });
 
-                              await Future.delayed(const Duration(milliseconds: 250));
+                              await Future.delayed(
+                                  const Duration(milliseconds: 250));
                               if (!mounted) return;
 
                               if (!isLast) {
@@ -247,16 +282,19 @@ class _WhqScreenState extends State<WhqScreen> {
                                 });
                               } else {
                                 await _submitAllAnswers(user.uid);
-                                if (mounted) setState(() => _isNavigating = false);
+                                if (mounted) setState(() =>
+                                _isNavigating = false);
                               }
                             },
                             borderRadius: BorderRadius.circular(10),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
                               decoration: BoxDecoration(
-                                color: selected ? Colors.white : Colors.transparent,
+                                color: selected ? Colors.white : Colors
+                                    .transparent,
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: selected ? primary : border,
@@ -280,7 +318,8 @@ class _WhqScreenState extends State<WhqScreen> {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: selected ? primary : Colors.grey[400]!,
+                                        color: selected ? primary : Colors
+                                            .grey[400]!,
                                         width: selected ? 5 : 1,
                                       ),
                                     ),
@@ -292,7 +331,9 @@ class _WhqScreenState extends State<WhqScreen> {
                                       style: GoogleFonts.inter(
                                         fontSize: 13.5,
                                         color: const Color(0xFF111827),
-                                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                        fontWeight: selected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
                                       ),
                                     ),
                                   ),
@@ -317,7 +358,8 @@ class _WhqScreenState extends State<WhqScreen> {
     setState(() => saving = true);
 
     final now = DateTime.now();
-    final dayId = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final dayId = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day
+        .toString().padLeft(2, '0')}";
     final submissionId = now.millisecondsSinceEpoch.toString();
 
     final responsesRef = FirebaseFirestore.instance
@@ -361,7 +403,8 @@ class _WhqScreenState extends State<WhqScreen> {
         .doc(widget.caseId)
         .set({
       "lastWhqAt": FieldValue.serverTimestamp(),
-      "lastWhqScore": questionnaireScore, // Or update this logic if needed later
+      "lastWhqScore": questionnaireScore,
+      // Or update this logic if needed later
       "lastUpdated": FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
@@ -371,10 +414,11 @@ class _WhqScreenState extends State<WhqScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => UploadWoundImageScreen(
-          caseId: widget.caseId,
-          whqResponseId: submissionId,
-        ),
+        builder: (_) =>
+            UploadWoundImageScreen(
+              caseId: widget.caseId,
+              whqResponseId: submissionId,
+            ),
       ),
     );
   }
@@ -383,18 +427,10 @@ class _WhqScreenState extends State<WhqScreen> {
     int s = 0;
 
     int likertValue(String v) {
-      switch (v) {
-        case "Not at all":
-          return 0;
-        case "A little bit":
-          return 1;
-        case "Quite a bit":
-          return 2;
-        case "A lot":
-          return 3;
-        default:
-          return 0;
-      }
+      if (v == "Not at all") return 0;
+      if (v == "A little") return 1;
+      if (v == "A lot") return 2;
+      return 0;
     }
 
     int yesNoValue(String v) => v == "Yes" ? 1 : 0;
@@ -402,14 +438,18 @@ class _WhqScreenState extends State<WhqScreen> {
     for (final q in questions) {
       final v = a[q.id];
       if (v == null) continue;
-      if (q.type == _QType.likert4) s += likertValue(v);
-      if (q.type == _QType.yesNo) s += yesNoValue(v);
+
+      if (q.type == _QType.likert3) {
+        s += likertValue(v);
+      } else if (q.type == _QType.yesNo) {
+        s += yesNoValue(v);
+      }
     }
     return s;
   }
 }
 
-enum _QType { likert4, yesNo }
+enum _QType { likert3, yesNo}
 
 class _Question {
   final String id;
