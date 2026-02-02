@@ -104,13 +104,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
 
-                // ✅ PageView (no images now — just to change text)
+// ✅ PageView (show image only on page 2)
                 PageView.builder(
                   controller: _controller,
                   itemCount: pages.length,
                   onPageChanged: (i) => setState(() => _index = i),
-                  itemBuilder: (_, __) => const SizedBox.expand(),
+                  itemBuilder: (context, i) {
+                    return Stack(
+                      children: [
+                        // Only page 2 (index 1) shows the image
+                        if (i == 1)
+                          Align(
+                            alignment: Alignment.topCenter,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 95), // adjust if needed
+                              child: Image.asset(
+                                "assets/images/onb22.png",
+                                height: 340, // adjust size
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
+
 
                 // ✅ Title + subtitle positions like Arc (lower-left)
                 Positioned(
@@ -420,7 +439,7 @@ class _BottomSignIn extends StatelessWidget {
           Text(
             "Already have an account? ",
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
               color: Colors.white.withOpacity(0.88),
             ),
