@@ -167,7 +167,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                     height: 44,
                     child: Center(
                       child: Text(
-                        "Create Case",
+                        "Create Wound Case",
                         style: GoogleFonts.inter(
                           fontSize: 15.5,
                           fontWeight: FontWeight.w700,
@@ -186,7 +186,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Create New Case",
+                            "Create Wound Case",
                             style: GoogleFonts.dmSans(
                               fontSize: 26,
                               fontWeight: FontWeight.w800,

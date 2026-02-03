@@ -2,9 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'personal_information_screen.dart';
-import 'wearable_screen.dart';
 import 'auth/login_screen.dart';
 import '../widgets/bottom_nav.dart';
 
@@ -177,7 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const WearableScreen()),
+                          MaterialPageRoute(builder: (_) => const PersonalInformationScreen()),
                         );
                       },
                     ),

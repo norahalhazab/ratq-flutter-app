@@ -1,8 +1,12 @@
-import 'package:flutter/material.dart';
+// case_details_screen.dart
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../utils/app_colors.dart';
 import '../widgets/bottom_nav.dart';
 import 'whq_screen.dart';
 
@@ -16,20 +20,25 @@ class CaseDetailsScreen extends StatelessWidget {
   final String caseId;
   final int? caseNumber;
 
-  static const bg = Color(0xFFFFFFFF);
-  static const cardBg = Color(0xFFD8E7EF);
-  static const primary = Color(0xFF3B7691);
-  static const secondary = Color(0xFF63A2BF);
-  static const border = Color(0xFFC8D3DF);
-  static const dangerBtn = Color(0xCC7A0000);
-
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text("User not logged in")),
+      return Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: SafeArea(
+          child: Center(
+            child: Text(
+              "User not logged in",
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ),
       );
     }
 
@@ -40,363 +49,573 @@ class CaseDetailsScreen extends StatelessWidget {
         .doc(caseId);
 
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: AppColors.backgroundColor,
       bottomNavigationBar: const AppBottomNav(currentIndex: 1),
-      body: SafeArea(
-        child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: caseRef.snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return const Center(child: Text("Something went wrong"));
-            }
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Center(child: Text("Case not found"));
-            }
+      body: Stack(
+        children: [
+          const _BlueGlassyBackground(),
+          SafeArea(
+            child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: caseRef.snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return _ErrorState(message: "Something went wrong");
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return _ErrorState(message: "Case not found");
+                }
 
-            final data = snapshot.data!.data() ?? {};
+                final data = snapshot.data!.data() ?? {};
+                final status =
+                ((data['status'] as String?) ?? 'active').toLowerCase();
+                final isClosed = status == 'closed';
 
-            final status = ((data['status'] as String?) ?? 'active').toLowerCase();
+                // Title
+                final displayTitle = caseNumber != null
+                    ? "Wound $caseNumber"
+                    : ((data['title'] as String?)?.trim().isNotEmpty == true
+                    ? (data['title'] as String)
+                    : "Wound case");
 
-            // ✅ Display title = Case N (if provided)
-            final displayTitle = caseNumber != null ? "Case $caseNumber" : ((data['title'] as String?) ?? "Case");
+                // Dates
+                final startValue =
+                    data['createdAt'] ?? data['startDate'] ?? data['surgeryDate'];
+                final startDateText = _formatDateTime(startValue);
 
-            // ✅ Start = createdAt (best) then startDate then surgeryDate
-            final startValue = data['createdAt'] ?? data['startDate'] ?? data['surgeryDate'];
-            final startDateText = _formatDateTime(startValue);
+                final lastValue = data['lastUpdated'] ?? data['createdAt'];
+                final lastUpdatedText = _formatDateTime(lastValue);
 
-            // ✅ Last Updated = lastUpdated then createdAt fallback
-            final lastValue = data['lastUpdated'] ?? data['createdAt'];
-            final lastUpdatedText = _formatDateTime(lastValue);
+                // Score
+                final scoreRaw = data['infectionScore'];
+                final int? score =
+                scoreRaw is int ? scoreRaw : int.tryParse('$scoreRaw');
+                final scoreText = score?.toString() ?? '--';
+                final assessment = _assessmentFromScore(score);
 
-            final scoreRaw = data['infectionScore'];
-            final int? score = scoreRaw is int ? scoreRaw : int.tryParse('$scoreRaw');
-            final scoreText = score?.toString() ?? '--';
-            final assessment = _assessmentFromScore(score);
+                final isHighRisk = (score ?? 0) >= 6;
 
-            return Stack(
-              children: [
-                SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new,
-                            size: 18,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                return Stack(
+                  children: [
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const _FolderBubble(secondary: secondary),
-                          const SizedBox(width: 12),
-                          Expanded(
+                          // Top bar
+                          Row(
+                            children: [
+                              _WhitePillButton(
+                                onTap: () => Navigator.pop(context),
+                                child: const Icon(
+                                  Icons.arrow_back_ios_new_rounded,
+                                  size: 18,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  "Wound Case details",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              _StatusPill(
+                                isClosed: isClosed,
+                                isHighRisk: isHighRisk,
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          // Title row (folder bubble + title)
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              _FolderBubble(
+                                tint: isHighRisk
+                                    ? AppColors.errorColor
+                                    : AppColors.primaryColor,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  displayTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textPrimary,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            "Monitor signs of infections for this wound case.",
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // Main glass card (blue-glass like cases list)
+                          _GlassyCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      "Wound Case overview",
+                                      style: GoogleFonts.dmSans(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    _MiniChip(
+                                      text: isClosed ? "Closed" : "Active",
+                                      color: isClosed
+                                          ? AppColors.textMuted
+                                          : AppColors.primaryColor,
+                                      filled: true,
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 12),
+                                Divider(
+                                  height: 1,
+                                  color: AppColors.dividerColor.withOpacity(0.9),
+                                ),
+                                const SizedBox(height: 12),
+
+                                // dates
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _InfoMini(
+                                        icon: Icons.calendar_today_outlined,
+                                        label: startDateText,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: _InfoMini(
+                                        icon: Icons.access_time,
+                                        label: lastUpdatedText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 14),
+
+                                // Infection score row
+                                Container(
+                                  padding:
+                                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(22),
+                                    color: AppColors.surfaceColor.withOpacity(0.92),
+                                    border: Border.all(
+                                      color: isHighRisk
+                                          ? AppColors.errorColor.withOpacity(0.16)
+                                          : AppColors.primaryColor.withOpacity(0.10),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Infection score",
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12.8,
+                                                fontWeight: FontWeight.w800,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            _MiniPillText(
+                                              text: assessment,
+                                              tint: isHighRisk
+                                                  ? AppColors.errorColor
+                                                  : AppColors.primaryColor,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        width: 62,
+                                        height: 62,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(22),
+                                          gradient: isHighRisk
+                                              ? AppColors.dangerGradient
+                                              : AppColors.primaryGradient,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: (isHighRisk
+                                                  ? AppColors.errorColor
+                                                  : AppColors.primaryColor)
+                                                  .withOpacity(0.22),
+                                              blurRadius: 22,
+                                              offset: const Offset(0, 14),
+                                              spreadRadius: -10,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            scoreText,
+                                            style: GoogleFonts.dmSans(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.w900,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(height: 14),
+
+                                // Daily check button (like cases screen primary arrow vibe)
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _PrimaryActionButton(
+                                        label: isClosed
+                                            ? "Case is closed"
+                                            : "Start daily check",
+                                        icon: Icons.play_arrow_rounded,
+                                        disabled: isClosed,
+                                        onTap: isClosed
+                                            ? null
+                                            : () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  WhqScreen(caseId: caseId),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 10),
+
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          // optional extra section placeholder (keeps style consistent)
+                          _FrostedSection(
+                            title: "Tips",
                             child: Text(
-                              displayTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF0F172A),
+                              "If symptoms worsen (pain, redness, swelling, fever), seek medical advice.",
+                              style: GoogleFonts.inter(
+                                fontSize: 12.8,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                                height: 1.45,
                               ),
                             ),
                           ),
                         ],
                       ),
-
-                      const SizedBox(height: 18),
-
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: secondary.withOpacity(0.25),
-                              blurRadius: 30,
-                              offset: const Offset(0, 8),
-                              spreadRadius: -8,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  "Case Overview",
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 14,
-                                    color: const Color(0xFF0F172A),
-                                  ),
-                                ),
-                                const Spacer(),
-                                _StatusChip(status: status),
-                              ],
-                            ),
-
-                            const SizedBox(height: 14),
-
-                            Text(
-                              "Start date",
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                color: const Color(0xFF36404F),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-
-                            _InfoRow(
-                              icon: Icons.calendar_today_outlined,
-                              value: startDateText,
-                            ),
-
-                            const SizedBox(height: 14),
-
-                            Text(
-                              "Last Updated",
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF36404F),
-                                fontSize: 12.9,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-
-                            _InfoRow(
-                              icon: Icons.access_time,
-                              value: lastUpdatedText,
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            Container(
-                              padding: const EdgeInsets.only(top: 16),
-                              decoration: const BoxDecoration(
-                                border: Border(top: BorderSide(color: border)),
-                              ),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    "Infection Score",
-                                    style: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    scoreText,
-                                    style: GoogleFonts.dmSans(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: secondary.withOpacity(0.10),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(color: secondary.withOpacity(0.20)),
-                              ),
-                              child: Text(
-                                assessment,
-                                style: GoogleFonts.inter(
-                                  fontSize: 11.4,
-                                  fontWeight: FontWeight.w600,
-                                  color: primary,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 14),
-
-                            SizedBox(
-                              width: double.infinity,
-                              height: 40,
-                              child: ElevatedButton(
-                                onPressed: status == 'closed'
-                                    ? null
-                                    : () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => WhqScreen(caseId: caseId),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primary,
-                                  disabledBackgroundColor: primary.withOpacity(0.35),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  elevation: 0,
-                                ),
-                                child: Text(
-                                  "Start daily check",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13.2,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 6),
-
-                            Text(
-                              "Start: $startDateText • Updated: $lastUpdatedText",
-                              style: GoogleFonts.inter(
-                                fontSize: 11.5,
-                                color: const Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: bg,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
-                          blurRadius: 16,
-                          offset: const Offset(0, -6),
-                        ),
-                      ],
                     ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 40,
-                      child: ElevatedButton.icon(
-                        onPressed: status == 'closed'
-                            ? null
-                            : () async {
+
+                    // Bottom “Close case” bar — red glass liquid
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: _BottomDangerBar(
+                        disabled: isClosed,
+                        onClose: () async {
                           await caseRef.update({
                             'status': 'closed',
                             'lastUpdated': FieldValue.serverTimestamp(),
                           });
                         },
-                        icon: const Icon(Icons.delete_outline, color: Colors.white),
-                        label: Text(
-                          "Close wound case",
-                          style: GoogleFonts.inter(
-                            fontSize: 13.2,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: dangerBtn,
-                          disabledBackgroundColor: dangerBtn.withOpacity(0.35),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          elevation: 0,
-                        ),
                       ),
                     ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _FolderBubble extends StatelessWidget {
-  const _FolderBubble({required this.secondary});
-  final Color secondary;
+/* ===================== Background: blue glassy ===================== */
+
+class _BlueGlassyBackground extends StatelessWidget {
+  const _BlueGlassyBackground();
 
   @override
   Widget build(BuildContext context) {
     return Stack(
-      alignment: Alignment.center,
       children: [
+        // base
         Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: secondary.withOpacity(0.18),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFEAF5FB),
+                Color(0xFFDCEEF7),
+                Color(0xFFF7FBFF),
+              ],
+            ),
           ),
         ),
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFF2F3A4A),
-            boxShadow: [
-              BoxShadow(
-                color: secondary.withOpacity(0.35),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
+
+        // blobs
+        Positioned(
+          top: -170,
+          left: -150,
+          child: _Blob(
+            size: 520,
+            color: AppColors.secondaryColor.withOpacity(0.22),
           ),
-          child: const Icon(Icons.folder_outlined, color: Colors.white, size: 22),
+        ),
+        Positioned(
+          top: 120,
+          right: -180,
+          child: _Blob(
+            size: 560,
+            color: AppColors.primaryColor.withOpacity(0.10),
+          ),
+        ),
+        Positioned(
+          bottom: -220,
+          left: -160,
+          child: _Blob(size: 600, color: Colors.white.withOpacity(0.60)),
+        ),
+
+        // blur glass
+        BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
+          child: Container(color: Colors.transparent),
         ),
       ],
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.value,
+class _Blob extends StatelessWidget {
+  const _Blob({required this.size, required this.color});
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+}
+
+/* ===================== Reusable UI ===================== */
+
+class _WhitePillButton extends StatelessWidget {
+  const _WhitePillButton({required this.child, required this.onTap});
+  final Widget child;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: _WhitePill(
+        radius: 999,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _WhitePill extends StatelessWidget {
+  const _WhitePill({
+    required this.child,
+    this.radius = 24,
+    this.padding = const EdgeInsets.all(14),
   });
 
+  final Widget child;
+  final double radius;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            color: Colors.white.withOpacity(0.90),
+            border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassyCard extends StatelessWidget {
+  const _GlassyCard({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            color: Colors.white.withOpacity(0.92),
+            border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 22,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _FrostedSection extends StatelessWidget {
+  const _FrostedSection({required this.title, required this.child});
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassyCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.dmSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _FolderBubble extends StatelessWidget {
+  const _FolderBubble({required this.tint});
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            tint.withOpacity(0.20),
+            tint.withOpacity(0.10),
+            Colors.white.withOpacity(0.70),
+          ],
+        ),
+        border: Border.all(color: AppColors.dividerColor.withOpacity(0.85)),
+      ),
+      child: Icon(Icons.folder_outlined, color: tint),
+    );
+  }
+}
+
+class _InfoMini extends StatelessWidget {
+  const _InfoMini({required this.icon, required this.label});
   final IconData icon;
-  final String value;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: const Color(0xFF0F172A)),
+        Icon(icon, size: 16, color: AppColors.textPrimary),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            value,
+            label,
             style: GoogleFonts.inter(
-              fontSize: 12.8,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF0F172A),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
             ),
           ),
         ),
@@ -405,38 +624,337 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-  final String status;
+class _MiniPillText extends StatelessWidget {
+  const _MiniPillText({required this.text, required this.tint});
+  final String text;
+  final Color tint;
 
   @override
   Widget build(BuildContext context) {
-    final isClosed = status == 'closed';
-
-    final bgColor = isClosed
-        ? const Color(0xFF64748B)
-        : const Color(0xFF63A2BF).withOpacity(0.18);
-
-    final textColor = isClosed ? Colors.white : const Color(0xFF3B7691);
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: bgColor,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: bgColor.withOpacity(0.7)),
+        color: tint.withOpacity(0.10),
+        border: Border.all(color: tint.withOpacity(0.22)),
       ),
       child: Text(
-        isClosed ? "Closed" : "Active",
+        text,
         style: GoogleFonts.inter(
-          fontSize: 11.4,
-          fontWeight: FontWeight.w600,
-          color: textColor,
+          fontSize: 11.8,
+          fontWeight: FontWeight.w800,
+          color: tint,
         ),
       ),
     );
   }
 }
+
+class _MiniChip extends StatelessWidget {
+  const _MiniChip({
+    required this.text,
+    required this.color,
+    this.filled = false,
+  });
+
+  final String text;
+  final Color color;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = filled ? color.withOpacity(0.12) : Colors.transparent;
+    final br = color.withOpacity(0.26);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: bg,
+        border: Border.all(color: br),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w900,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.isClosed, required this.isHighRisk});
+  final bool isClosed;
+  final bool isHighRisk;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isClosed) {
+      return _WhitePill(
+        radius: 999,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(width: 7),
+            Text(
+              "Closed",
+              style: GoogleFonts.inter(
+                fontSize: 11.8,
+                fontWeight: FontWeight.w900,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final tint = isHighRisk ? AppColors.errorColor : AppColors.primaryColor;
+
+    return _WhitePill(
+      radius: 999,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: tint),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            isHighRisk ? "High risk" : "Active",
+            style: GoogleFonts.inter(
+              fontSize: 11.8,
+              fontWeight: FontWeight.w900,
+              color: tint,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrimaryActionButton extends StatelessWidget {
+  const _PrimaryActionButton({
+    required this.label,
+    required this.icon,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool disabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: disabled ? 0.45 : 1,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: AppColors.primaryGradient,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryColor.withOpacity(0.22),
+                blurRadius: 18,
+                offset: const Offset(0, 12),
+                spreadRadius: -10,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 20, color: Colors.white),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 13.2,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/* ===================== Bottom red “liquid glass” bar ===================== */
+
+class _BottomDangerBar extends StatelessWidget {
+  const _BottomDangerBar({
+    required this.disabled,
+    required this.onClose,
+  });
+
+  final bool disabled;
+  final Future<void> Function() onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(26),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.78),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 22,
+                    offset: Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Opacity(
+                opacity: disabled ? 0.45 : 1,
+                child: InkWell(
+                  onTap: disabled
+                      ? null
+                      : () async {
+                    await onClose();
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.errorColor.withOpacity(0.95),
+                          const Color(0xFF7A0000).withOpacity(0.95),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.errorColor.withOpacity(0.22),
+                          blurRadius: 22,
+                          offset: const Offset(0, 14),
+                          spreadRadius: -12,
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        // “liquid shine”
+                        Positioned(
+                          left: -30,
+                          top: -20,
+                          child: Container(
+                            width: 140,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(999),
+                              color: Colors.white.withOpacity(0.18),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: -40,
+                          bottom: -30,
+                          child: Container(
+                            width: 160,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(999),
+                              color: Colors.black.withOpacity(0.06),
+                            ),
+                          ),
+                        ),
+
+                        // content
+                        Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.delete_outline,
+                                  color: Colors.white, size: 20),
+                              const SizedBox(width: 10),
+                              Text(
+                                disabled ? "Case already closed" : "Close wound case",
+                                style: GoogleFonts.inter(
+                                  fontSize: 13.2,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/* ===================== Empty / Error ===================== */
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          message,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: AppColors.errorColor,
+            fontWeight: FontWeight.w900,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
+/* ===================== Helpers ===================== */
 
 String _formatDateTime(dynamic value) {
   if (value == null) return "--";
@@ -467,7 +985,7 @@ String _formatDateTime(dynamic value) {
 
 String _assessmentFromScore(int? score) {
   if (score == null) return "No data yet";
-  if (score <= 2) return "No Signs of Infection";
-  if (score <= 5) return "Mild Warning";
-  return "High Risk — Seek Care";
+  if (score <= 2) return "Stable • keep monitoring";
+  if (score <= 5) return "Warning • watch symptoms";
+  return "High risk • seek care";
 }

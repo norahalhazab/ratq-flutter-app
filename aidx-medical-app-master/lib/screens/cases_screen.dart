@@ -10,8 +10,11 @@ import '../widgets/bottom_nav.dart';
 import 'case_details_screen.dart';
 import 'create_case_screen.dart';
 import 'whq_screen.dart';
+import '../utils/app_colors.dart';
 
-enum CaseChipFilter { all, active, closed, highRisk, lowRisk }
+
+
+enum CaseChipFilter { all, active, closed }
 enum CaseSort { startMostRecent, startOldest }
 
 class CasesScreen extends StatefulWidget {
@@ -22,21 +25,10 @@ class CasesScreen extends StatefulWidget {
 }
 
 class _CasesScreenState extends State<CasesScreen> {
-  // Brand
-  static const Color primary = Color(0xFF3B7691);
-  static const Color secondary = Color(0xFF63A2BF);
-
-  // Status
-  static const Color activeGreen = Color(0xFF16A34A);
-  static const Color closedRed = Color(0xFFDC2626);
-
-  // Risk colors
-  static const Color riskBlue = Color(0xFF3B7691);
-  static const Color riskRed = Color(0xFFDC2626);
-
+  // Top chip row (ONLY these 3)
   CaseChipFilter _chip = CaseChipFilter.all;
 
-  // Advanced filter state (bottom sheet)
+  // Bottom-sheet advanced filters (still includes high/low risk)
   CaseSort _sort = CaseSort.startMostRecent;
   String _statusFilter = 'all'; // all / active / closed
   String _riskFilter = 'all'; // all / low / high
@@ -46,19 +38,18 @@ class _CasesScreenState extends State<CasesScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.12),
+      barrierColor: Colors.black.withOpacity(0.15),
       builder: (_) {
-        // local temp values so user can cancel/close
         var tmpSort = _sort;
         var tmpStatus = _statusFilter;
         var tmpRisk = _riskFilter;
 
-        return StatefulBuilder(
-          builder: (context, setSheet) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-              child: _GlassSheet(
-                child: Column(
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          child: _FrostedSheet(
+            child: StatefulBuilder(
+              builder: (context, setSheet) {
+                return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Handle
@@ -67,7 +58,7 @@ class _CasesScreenState extends State<CasesScreen> {
                       height: 5,
                       margin: const EdgeInsets.only(top: 10, bottom: 14),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.10),
+                        color: Colors.black.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
@@ -79,7 +70,7 @@ class _CasesScreenState extends State<CasesScreen> {
                           style: GoogleFonts.dmSans(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
-                            color: const Color(0xFF0F172A),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                         const Spacer(),
@@ -95,7 +86,7 @@ class _CasesScreenState extends State<CasesScreen> {
                             "Reset",
                             style: GoogleFonts.inter(
                               fontWeight: FontWeight.w900,
-                              color: primary,
+                              color: AppColors.primaryColor,
                             ),
                           ),
                         ),
@@ -111,17 +102,17 @@ class _CasesScreenState extends State<CasesScreen> {
                           _RadioRow(
                             label: "Most recent first",
                             selected: tmpSort == CaseSort.startMostRecent,
-                            onTap: () => setSheet(
-                                  () => tmpSort = CaseSort.startMostRecent,
-                            ),
+                            onTap: () => setSheet(() {
+                              tmpSort = CaseSort.startMostRecent;
+                            }),
                           ),
                           const SizedBox(height: 8),
                           _RadioRow(
                             label: "Oldest first",
                             selected: tmpSort == CaseSort.startOldest,
-                            onTap: () => setSheet(
-                                  () => tmpSort = CaseSort.startOldest,
-                            ),
+                            onTap: () => setSheet(() {
+                              tmpSort = CaseSort.startOldest;
+                            }),
                           ),
                         ],
                       ),
@@ -168,14 +159,15 @@ class _CasesScreenState extends State<CasesScreen> {
                             onTap: () => setSheet(() => tmpRisk = 'all'),
                           ),
                           _MiniPill(
-                            text: "Low",
+                            text: "Low risk",
                             selected: tmpRisk == 'low',
                             onTap: () => setSheet(() => tmpRisk = 'low'),
                           ),
                           _MiniPill(
-                            text: "High",
+                            text: "High risk",
                             selected: tmpRisk == 'high',
                             onTap: () => setSheet(() => tmpRisk = 'high'),
+                            selectedColor: AppColors.errorColor,
                           ),
                         ],
                       ),
@@ -185,7 +177,7 @@ class _CasesScreenState extends State<CasesScreen> {
 
                     SizedBox(
                       width: double.infinity,
-                      height: 48,
+                      height: 50,
                       child: ElevatedButton(
                         onPressed: () {
                           setState(() {
@@ -193,19 +185,12 @@ class _CasesScreenState extends State<CasesScreen> {
                             _statusFilter = tmpStatus;
                             _riskFilter = tmpRisk;
 
-                            // keep chip in sync (nice UX)
-                            if (_statusFilter == 'active' && _riskFilter == 'all') {
+                            // keep top chips in sync ONLY for status
+                            if (_statusFilter == 'active') {
                               _chip = CaseChipFilter.active;
-                            } else if (_statusFilter == 'closed' && _riskFilter == 'all') {
+                            } else if (_statusFilter == 'closed') {
                               _chip = CaseChipFilter.closed;
-                            } else if (_riskFilter == 'high' && _statusFilter == 'all') {
-                              _chip = CaseChipFilter.highRisk;
-                            } else if (_riskFilter == 'low' && _statusFilter == 'all') {
-                              _chip = CaseChipFilter.lowRisk;
-                            } else if (_statusFilter == 'all' && _riskFilter == 'all') {
-                              _chip = CaseChipFilter.all;
                             } else {
-                              // mixed filters -> keep current chip (or set to all)
                               _chip = CaseChipFilter.all;
                             }
                           });
@@ -213,7 +198,7 @@ class _CasesScreenState extends State<CasesScreen> {
                           Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: primary,
+                          backgroundColor: AppColors.primaryColor,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -231,10 +216,10 @@ class _CasesScreenState extends State<CasesScreen> {
 
                     const SizedBox(height: 14),
                   ],
-                ),
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         );
       },
     );
@@ -246,7 +231,7 @@ class _CasesScreenState extends State<CasesScreen> {
 
     if (user == null) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.backgroundColor,
         body: SafeArea(
           child: Center(
             child: Text(
@@ -254,7 +239,7 @@ class _CasesScreenState extends State<CasesScreen> {
               style: GoogleFonts.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF0F172A),
+                color: AppColors.textPrimary,
               ),
             ),
           ),
@@ -272,7 +257,7 @@ class _CasesScreenState extends State<CasesScreen> {
         .orderBy('lastUpdated', descending: true);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.backgroundColor,
       bottomNavigationBar: AppBottomNav(
         currentIndex: 1,
         onNewTap: () {
@@ -284,7 +269,7 @@ class _CasesScreenState extends State<CasesScreen> {
       ),
       body: Stack(
         children: [
-          const _SoftGlassBackground(),
+          const _BlueGlassyBackground(),
           SafeArea(
             child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: userDocStream,
@@ -296,12 +281,12 @@ class _CasesScreenState extends State<CasesScreen> {
 
                 return Column(
                   children: [
-                    // ======= Top Row =======
+                    // ===== Top Row =====
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
                       child: Row(
                         children: [
-                          _AvatarChip(
+                          _AvatarButton(
                             letter: (userName.isNotEmpty
                                 ? userName.characters.first
                                 : "U")
@@ -317,7 +302,7 @@ class _CasesScreenState extends State<CasesScreen> {
                                   style: GoogleFonts.inter(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF64748B),
+                                    color: AppColors.textSecondary,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -328,14 +313,14 @@ class _CasesScreenState extends State<CasesScreen> {
                                   style: GoogleFonts.dmSans(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w900,
-                                    color: const Color(0xFF0F172A),
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          _GlassPillButton(
-                            label: "New Case",
+                          _HeaderPill(
+                            label: "New Wound",
                             icon: Icons.add,
                             onTap: () {
                               Navigator.push(
@@ -350,7 +335,7 @@ class _CasesScreenState extends State<CasesScreen> {
                       ),
                     ),
 
-                    // ======= Title (NO background card) =======
+                    // ===== Title =====
                     Padding(
                       padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
                       child: Align(
@@ -360,7 +345,7 @@ class _CasesScreenState extends State<CasesScreen> {
                           style: GoogleFonts.dmSans(
                             fontSize: 30,
                             fontWeight: FontWeight.w900,
-                            color: const Color(0xFF0F172A),
+                            color: AppColors.textPrimary,
                             height: 1.0,
                           ),
                         ),
@@ -375,13 +360,13 @@ class _CasesScreenState extends State<CasesScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 13.2,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFF64748B),
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ),
                     ),
 
-                    // ======= Horizontal filter row + filter button =======
+                    // ===== White pills: All/Active/Closed + Filter =====
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                       child: Row(
@@ -392,64 +377,35 @@ class _CasesScreenState extends State<CasesScreen> {
                               padding: const EdgeInsets.only(left: 6),
                               child: Row(
                                 children: [
-                                  _ChipPill(
+                                  _SegmentPill(
                                     label: "All",
                                     selected: _chip == CaseChipFilter.all,
                                     onTap: () {
                                       setState(() {
                                         _chip = CaseChipFilter.all;
                                         _statusFilter = 'all';
-                                        _riskFilter = 'all';
                                       });
                                     },
                                   ),
                                   const SizedBox(width: 10),
-                                  _ChipPill(
+                                  _SegmentPill(
                                     label: "Active",
                                     selected: _chip == CaseChipFilter.active,
                                     onTap: () {
                                       setState(() {
                                         _chip = CaseChipFilter.active;
                                         _statusFilter = 'active';
-                                        _riskFilter = 'all';
                                       });
                                     },
                                   ),
                                   const SizedBox(width: 10),
-                                  _ChipPill(
+                                  _SegmentPill(
                                     label: "Closed",
                                     selected: _chip == CaseChipFilter.closed,
                                     onTap: () {
                                       setState(() {
                                         _chip = CaseChipFilter.closed;
                                         _statusFilter = 'closed';
-                                        _riskFilter = 'all';
-                                      });
-                                    },
-                                  ),
-                                  const SizedBox(width: 10),
-                                  _ChipPill(
-                                    label: "High risk",
-                                    selected: _chip == CaseChipFilter.highRisk,
-                                    selectedColor: riskRed,
-                                    onTap: () {
-                                      setState(() {
-                                        _chip = CaseChipFilter.highRisk;
-                                        _statusFilter = 'all';
-                                        _riskFilter = 'high';
-                                      });
-                                    },
-                                  ),
-                                  const SizedBox(width: 10),
-                                  _ChipPill(
-                                    label: "Low risk",
-                                    selected: _chip == CaseChipFilter.lowRisk,
-                                    selectedColor: riskBlue,
-                                    onTap: () {
-                                      setState(() {
-                                        _chip = CaseChipFilter.lowRisk;
-                                        _statusFilter = 'all';
-                                        _riskFilter = 'low';
                                       });
                                     },
                                   ),
@@ -459,15 +415,15 @@ class _CasesScreenState extends State<CasesScreen> {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          _GlassIconButton(
-                            icon: Icons.tune_rounded, // filter slider icon
+                          _IconPillButton(
+                            icon: Icons.tune_rounded,
                             onTap: _openFilters,
                           ),
                         ],
                       ),
                     ),
 
-                    // ======= Cases list =======
+                    // ===== Cases List =====
                     Expanded(
                       child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                         stream: casesQuery.snapshots(),
@@ -498,31 +454,27 @@ class _CasesScreenState extends State<CasesScreen> {
                             );
                           }
 
-                          // ---- Case numbers:
-                          // Prefer stored 'caseNo' if exists, else compute oldest=1
                           final caseNumberById = _computeCaseNumbers(docs);
 
-                          // ---- Apply advanced filters + chip filters
+                          // Apply filters
                           List<QueryDocumentSnapshot<Map<String, dynamic>>> list =
                           [...docs];
 
-                          // status filter
-                          final sFilter = _statusFilter;
-                          if (sFilter != 'all') {
-                            final wantClosed = sFilter == 'closed';
+                          // status
+                          if (_statusFilter != 'all') {
+                            final wantClosed = _statusFilter == 'closed';
                             list = list.where((d) {
-                              final status = ((d.data()['status'] as String?) ??
-                                  'active')
+                              final status =
+                              ((d.data()['status'] as String?) ?? 'active')
                                   .toLowerCase();
                               final isClosed = status == 'closed';
                               return wantClosed ? isClosed : !isClosed;
                             }).toList();
                           }
 
-                          // risk filter
-                          final rFilter = _riskFilter;
-                          if (rFilter != 'all') {
-                            final wantHigh = rFilter == 'high';
+                          // risk
+                          if (_riskFilter != 'all') {
+                            final wantHigh = _riskFilter == 'high';
                             list = list.where((d) {
                               final score = _infectionScore(d.data());
                               final risk = _riskBucket(score);
@@ -530,7 +482,7 @@ class _CasesScreenState extends State<CasesScreen> {
                             }).toList();
                           }
 
-                          // sort
+                          // sort by start date
                           list.sort((a, b) {
                             final aDt = _bestStartDate(a.data());
                             final bDt = _bestStartDate(b.data());
@@ -561,18 +513,17 @@ class _CasesScreenState extends State<CasesScreen> {
                                     data['surgeryDate'] ??
                                     data['createdAt'],
                               );
-
                               final lastUpdated = _formatDate(
                                 data['lastUpdated'] ?? data['createdAt'],
                               );
 
                               final score = _infectionScore(data);
                               final assessment = _assessmentFromScore(score);
-                              final riskBucket = _riskBucket(score); // low/high
+                              final isHighRisk = _riskBucket(score) == 'high';
 
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 14),
-                                child: _CaseGlassCardV2(
+                                child: _WoundCleanCard(
                                   caseNo: caseNo,
                                   dayLabel: _computeDayLabel(
                                     data['startDate'] ??
@@ -581,11 +532,10 @@ class _CasesScreenState extends State<CasesScreen> {
                                   ),
                                   startDate: startDate,
                                   lastUpdated: lastUpdated,
-                                  score: score,
-                                  assessment: assessment,
                                   isClosed: isClosed,
-                                  isHighRisk: riskBucket == 'high',
-                                  onPlay: isClosed
+                                  isHighRisk: isHighRisk,
+                                  assessment: assessment,
+                                  onStartDaily: isClosed
                                       ? null
                                       : () {
                                     Navigator.push(
@@ -635,10 +585,8 @@ class _CasesScreenState extends State<CasesScreen> {
     );
   }
 
-  static String _getUserName(
-      Map<String, dynamic>? data, {
-        required String fallback,
-      }) {
+  static String _getUserName(Map<String, dynamic>? data,
+      {required String fallback}) {
     if (data == null) return fallback;
     final v = data['name'] ?? data['username'] ?? data['displayName'];
     final s = (v is String) ? v.trim() : '';
@@ -646,52 +594,48 @@ class _CasesScreenState extends State<CasesScreen> {
   }
 }
 
-/* ===================== Background ===================== */
+/* ===================== Background: blue glassy ===================== */
 
-class _SoftGlassBackground extends StatelessWidget {
-  const _SoftGlassBackground();
+class _BlueGlassyBackground extends StatelessWidget {
+  const _BlueGlassyBackground();
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        // base
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
+                Color(0xFFEAF5FB),
+                Color(0xFFDCEEF7),
                 Color(0xFFF7FBFF),
-                Color(0xFFEEF7FF),
-                Color(0xFFF8FAFC),
               ],
             ),
           ),
         ),
+
+        // blobs
         Positioned(
-          top: -160,
-          left: -140,
-          child: _Blob(
-            size: 520,
-            color: const Color(0xFF63A2BF).withOpacity(0.18),
-          ),
+          top: -170,
+          left: -150,
+          child: _Blob(size: 520, color: AppColors.secondaryColor.withOpacity(0.22)),
         ),
         Positioned(
-          top: 140,
+          top: 120,
           right: -180,
-          child: _Blob(
-            size: 560,
-            color: Colors.white.withOpacity(0.45),
-          ),
+          child: _Blob(size: 560, color: AppColors.primaryColor.withOpacity(0.10)),
         ),
         Positioned(
           bottom: -220,
           left: -160,
-          child: _Blob(
-            size: 600,
-            color: const Color(0xFF3B7691).withOpacity(0.10),
-          ),
+          child: _Blob(size: 600, color: Colors.white.withOpacity(0.60)),
         ),
+
+        // blur glass
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
           child: Container(color: Colors.transparent),
@@ -716,15 +660,15 @@ class _Blob extends StatelessWidget {
   }
 }
 
-/* ===================== Top widgets ===================== */
+/* ===================== Header pills (consistent) ===================== */
 
-class _AvatarChip extends StatelessWidget {
-  const _AvatarChip({required this.letter});
+class _AvatarButton extends StatelessWidget {
+  const _AvatarButton({required this.letter});
   final String letter;
 
   @override
   Widget build(BuildContext context) {
-    return _Glass(
+    return _WhitePill(
       radius: 18,
       padding: EdgeInsets.zero,
       child: SizedBox(
@@ -736,7 +680,7 @@ class _AvatarChip extends StatelessWidget {
             style: GoogleFonts.dmSans(
               fontSize: 18,
               fontWeight: FontWeight.w900,
-              color: const Color(0xFF3B7691),
+              color: AppColors.primaryColor,
             ),
           ),
         ),
@@ -745,8 +689,8 @@ class _AvatarChip extends StatelessWidget {
   }
 }
 
-class _GlassPillButton extends StatelessWidget {
-  const _GlassPillButton({
+class _HeaderPill extends StatelessWidget {
+  const _HeaderPill({
     required this.label,
     required this.icon,
     required this.onTap,
@@ -758,24 +702,346 @@ class _GlassPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _WhitePillButton(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: AppColors.primaryColor),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: AppColors.primaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentPill extends StatelessWidget {
+  const _SegmentPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
-      child: _Glass(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          gradient: selected ? AppColors.primaryGradient : null,
+          color: selected ? null : Colors.white.withOpacity(0.92),
+          border: Border.all(
+            color: selected
+                ? Colors.white.withOpacity(0.55)
+                : AppColors.dividerColor.withOpacity(0.9),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(selected ? 0.10 : 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: selected ? Colors.white : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IconPillButton extends StatelessWidget {
+  const _IconPillButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _WhitePillButton(
+      onTap: onTap,
+      child: Icon(icon, color: AppColors.primaryColor),
+    );
+  }
+}
+
+class _WhitePillButton extends StatelessWidget {
+  const _WhitePillButton({required this.child, required this.onTap});
+  final Widget child;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: _WhitePill(
         radius: 999,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: const Color(0xFF3B7691)),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF3B7691),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _WhitePill extends StatelessWidget {
+  const _WhitePill({
+    required this.child,
+    this.radius = 24,
+    this.padding = const EdgeInsets.all(14),
+  });
+
+  final Widget child;
+  final double radius;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            color: Colors.white.withOpacity(0.90),
+            border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
               ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/* ===================== Card: clean white + modern ===================== */
+
+class _WoundCleanCard extends StatelessWidget {
+  const _WoundCleanCard({
+    required this.caseNo,
+    required this.dayLabel,
+    required this.startDate,
+    required this.lastUpdated,
+    required this.isClosed,
+    required this.isHighRisk,
+    required this.assessment,
+    required this.onDetails,
+    required this.onDashboard,
+    this.onStartDaily,
+  });
+
+  final int caseNo;
+  final String dayLabel;
+  final String startDate;
+  final String lastUpdated;
+
+  final bool isClosed;
+  final bool isHighRisk;
+  final String assessment;
+
+  final VoidCallback onDetails;
+  final VoidCallback onDashboard;
+  final VoidCallback? onStartDaily;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = isClosed ? AppColors.errorColor : AppColors.successColor;
+    final statusText = isClosed ? "Closed" : "Active";
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        color: Colors.white.withOpacity(0.92),
+        border: Border.all(
+          color: isHighRisk
+              ? AppColors.errorColor.withOpacity(0.18)
+              : AppColors.primaryColor.withOpacity(0.10),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 22,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // header
+            Row(
+              children: [
+                _CardIconBadge(
+                  tint: isHighRisk ? AppColors.errorColor : AppColors.primaryColor,
+                  icon: Icons.folder_outlined,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Wound $caseNo",
+                        style: GoogleFonts.dmSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        dayLabel,
+                        style: GoogleFonts.inter(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _StatusChip(text: statusText, color: statusColor),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+            Divider(height: 1, color: AppColors.dividerColor.withOpacity(0.9)),
+            const SizedBox(height: 12),
+
+            // dates row
+            Row(
+              children: [
+                Expanded(
+                  child: _InfoMini(
+                    icon: Icons.calendar_today_outlined,
+                    label: startDate,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _InfoMini(
+                    icon: Icons.access_time,
+                    label: lastUpdated,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // daily check sub-card (white, clean)
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                color: AppColors.surfaceColor.withOpacity(0.95),
+                border: Border.all(
+                  color: isHighRisk
+                      ? AppColors.errorColor.withOpacity(0.14)
+                      : AppColors.primaryColor.withOpacity(0.10),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Daily Check",
+                          style: GoogleFonts.dmSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          assessment,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _PrimaryCircleArrow(
+                    onTap: onStartDaily,
+                    disabled: onStartDaily == null,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // actions (blue buttons)
+            Row(
+              children: [
+                Expanded(
+                  child: _BlueActionButton(
+                    label: "View Details",
+                    icon: Icons.remove_red_eye_outlined,
+                    gradient: AppColors.primaryGradient,
+                    onTap: onDetails,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _BlueActionButton(
+                    label: "View Dashboard",
+                    icon: Icons.bar_chart_rounded,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF63A2BF),
+                        Color(0xFF3B7691),
+                      ],
+                    ),
+                    onTap: onDashboard,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -784,371 +1050,64 @@ class _GlassPillButton extends StatelessWidget {
   }
 }
 
-class _GlassIconButton extends StatelessWidget {
-  const _GlassIconButton({
-    required this.icon,
-    required this.onTap,
-  });
-
+class _CardIconBadge extends StatelessWidget {
+  const _CardIconBadge({required this.tint, required this.icon});
+  final Color tint;
   final IconData icon;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: _Glass(
-        radius: 18,
-        padding: EdgeInsets.zero,
-        child: const SizedBox(
-          width: 44,
-          height: 44,
-          child: Center(
-            child: Icon(Icons.filter_alt_outlined, color: Color(0xFF3B7691)),
-          ),
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            tint.withOpacity(0.18),
+            tint.withOpacity(0.10),
+            Colors.white.withOpacity(0.70),
+          ],
         ),
+        border: Border.all(color: AppColors.dividerColor.withOpacity(0.85)),
       ),
+      child: Icon(icon, color: tint),
     );
   }
 }
 
-/* ===================== Filter chips ===================== */
-
-class _ChipPill extends StatelessWidget {
-  const _ChipPill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.selectedColor = const Color(0xFF3B7691),
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final Color selectedColor;
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.text, required this.color});
+  final String text;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected
-        ? selectedColor.withOpacity(0.14)
-        : Colors.white.withOpacity(0.50);
-
-    final br = selected
-        ? selectedColor.withOpacity(0.25)
-        : Colors.white.withOpacity(0.70);
-
-    final textColor = selected ? selectedColor : const Color(0xFF64748B);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: ClipRRect(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            height: 44,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: br),
-            ),
-            child: Center(
-              child: Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: textColor,
-                ),
-              ),
-            ),
-          ),
-        ),
+        color: color.withOpacity(0.12),
+        border: Border.all(color: color.withOpacity(0.26)),
       ),
-    );
-  }
-}
-
-/* ===================== Card (glass) ===================== */
-
-class _CaseGlassCardV2 extends StatelessWidget {
-  const _CaseGlassCardV2({
-    required this.caseNo,
-    required this.dayLabel,
-    required this.startDate,
-    required this.lastUpdated,
-    required this.score,
-    required this.assessment,
-    required this.isClosed,
-    required this.isHighRisk,
-    required this.onDetails,
-    required this.onDashboard,
-    this.onPlay,
-  });
-
-  final int caseNo;
-  final String dayLabel;
-  final String startDate;
-  final String lastUpdated;
-
-  final int score;
-  final String assessment;
-
-  final bool isClosed;
-  final bool isHighRisk;
-
-  final VoidCallback onDetails;
-  final VoidCallback onDashboard;
-  final VoidCallback? onPlay;
-
-  static const Color primary = Color(0xFF3B7691);
-  static const Color secondary = Color(0xFF63A2BF);
-
-  static const Color activeGreen = Color(0xFF16A34A);
-  static const Color closedRed = Color(0xFFDC2626);
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = isClosed ? closedRed : activeGreen;
-    final statusText = isClosed ? "Closed" : "Active";
-
-    final riskColor = isHighRisk ? closedRed : primary;
-    final riskText = isHighRisk ? "High risk" : "No signs of infection";
-
-    // uniform glass base + small tint if high risk
-    final tint = isHighRisk ? closedRed : secondary;
-
-    return _Glass(
-      radius: 26,
-      tint: tint.withOpacity(0.08),
-      padding: const EdgeInsets.all(16),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Header row
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: Colors.white.withOpacity(0.55),
-                  border: Border.all(color: Colors.white.withOpacity(0.70)),
-                ),
-                child: Icon(
-                  Icons.folder_outlined,
-                  color: isHighRisk ? closedRed : primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Case $caseNo",
-                      style: GoogleFonts.dmSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      dayLabel,
-                      style: GoogleFonts.inter(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _StatusPill(text: statusText, color: statusColor),
-            ],
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
           ),
-
-          const SizedBox(height: 12),
-          Container(height: 1, color: Colors.black.withOpacity(0.06)),
-          const SizedBox(height: 12),
-
-          // Dates
-          Row(
-            children: [
-              Expanded(
-                child: _InfoMini(
-                  icon: Icons.calendar_today_outlined,
-                  label: startDate,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: _InfoMini(
-                  icon: Icons.access_time,
-                  label: lastUpdated,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Score + Play
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    color: tint.withOpacity(0.10),
-                    border: Border.all(color: tint.withOpacity(0.20)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: Colors.white.withOpacity(0.65),
-                          border:
-                          Border.all(color: Colors.white.withOpacity(0.70)),
-                        ),
-                        child: Icon(
-                          Icons.monitor_heart_outlined,
-                          color: isHighRisk ? closedRed : primary,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Infection Score",
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                                color: const Color(0xFF64748B),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                Text(
-                                  "$score",
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w900,
-                                    color: const Color(0xFF0F172A),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Flexible(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: riskColor.withOpacity(0.10),
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(
-                                          color: riskColor.withOpacity(0.20)),
-                                    ),
-                                    child: Text(
-                                      riskText,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 11.2,
-                                        fontWeight: FontWeight.w900,
-                                        color: riskColor,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              assessment,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
-                                fontSize: 11.2,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Play button
-              InkWell(
-                onTap: onPlay,
-                borderRadius: BorderRadius.circular(18),
-                child: Opacity(
-                  opacity: onPlay == null ? 0.35 : 1,
-                  child: Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      color: primary.withOpacity(0.85),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primary.withOpacity(0.25),
-                          blurRadius: 18,
-                          offset: const Offset(0, 10),
-                          spreadRadius: -8,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Actions
-          Row(
-            children: [
-              Expanded(
-                child: _ActionPill(
-                  label: "View Details",
-                  icon: Icons.remove_red_eye_outlined,
-                  color: isClosed ? closedRed : primary,
-                  onTap: onDetails,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _ActionPill(
-                  label: "View Dashboard",
-                  icon: Icons.bar_chart_rounded,
-                  color: isClosed ? closedRed : primary,
-                  onTap: onDashboard,
-                ),
-              ),
-            ],
+          const SizedBox(width: 7),
+          Text(
+            text,
+            style: GoogleFonts.inter(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -1156,26 +1115,89 @@ class _CaseGlassCardV2 extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.text, required this.color});
-  final String text;
-  final Color color;
+class _PrimaryCircleArrow extends StatelessWidget {
+  const _PrimaryCircleArrow({required this.onTap, required this.disabled});
+  final VoidCallback? onTap;
+  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
+    return Opacity(
+      opacity: disabled ? 0.35 : 1,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(999),
-        color: color.withOpacity(0.12),
-        border: Border.all(color: color.withOpacity(0.25)),
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: AppColors.primaryGradient,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryColor.withOpacity(0.25),
+                blurRadius: 18,
+                offset: const Offset(0, 12),
+                spreadRadius: -10,
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.arrow_forward_rounded,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
       ),
-      child: Text(
-        text,
-        style: GoogleFonts.inter(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w900,
-          color: color,
+    );
+  }
+}
+
+class _BlueActionButton extends StatelessWidget {
+  const _BlueActionButton({
+    required this.label,
+    required this.icon,
+    required this.gradient,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Gradient gradient;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        height: 46,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          gradient: gradient,
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 18,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 12.8,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1191,7 +1213,7 @@ class _InfoMini extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: const Color(0xFF0F172A)),
+        Icon(icon, size: 16, color: AppColors.textPrimary),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -1199,7 +1221,7 @@ class _InfoMini extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 12.5,
               fontWeight: FontWeight.w900,
-              color: const Color(0xFF0F172A),
+              color: AppColors.textPrimary,
             ),
           ),
         ),
@@ -1208,116 +1230,10 @@ class _InfoMini extends StatelessWidget {
   }
 }
 
-class _ActionPill extends StatelessWidget {
-  const _ActionPill({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
+/* ===================== Bottom sheet UI ===================== */
 
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          color: color.withOpacity(0.08),
-          border: Border.all(color: color.withOpacity(0.25)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 12.6,
-                fontWeight: FontWeight.w900,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/* ===================== Glass primitives ===================== */
-
-class _Glass extends StatelessWidget {
-  const _Glass({
-    required this.child,
-    this.radius = 24,
-    this.padding = const EdgeInsets.all(14),
-    this.tint,
-  });
-
-  final Widget child;
-  final double radius;
-  final EdgeInsets padding;
-  final Color? tint;
-
-  @override
-  Widget build(BuildContext context) {
-    final border = Colors.white.withOpacity(0.70);
-    final bg = Colors.white.withOpacity(0.68);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: border),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                bg,
-                bg.withOpacity(0.52),
-                const Color(0xFFEEF7FF).withOpacity(0.35),
-              ],
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x14000000),
-                blurRadius: 22,
-                offset: Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              if (tint != null)
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(color: tint),
-                  ),
-                ),
-              child,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GlassSheet extends StatelessWidget {
-  const _GlassSheet({required this.child});
+class _FrostedSheet extends StatelessWidget {
+  const _FrostedSheet({required this.child});
   final Widget child;
 
   @override
@@ -1325,13 +1241,20 @@ class _GlassSheet extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(26),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(26),
-            color: Colors.white.withOpacity(0.70),
-            border: Border.all(color: Colors.white.withOpacity(0.75)),
+            color: Colors.white.withOpacity(0.92),
+            border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 22,
+                offset: Offset(0, 12),
+              ),
+            ],
           ),
           child: child,
         ),
@@ -1355,7 +1278,7 @@ class _SheetSection extends StatelessWidget {
           style: GoogleFonts.inter(
             fontSize: 12.8,
             fontWeight: FontWeight.w900,
-            color: const Color(0xFF0F172A),
+            color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 10),
@@ -1378,7 +1301,7 @@ class _RadioRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = selected ? const Color(0xFF3B7691) : const Color(0xFF94A3B8);
+    final c = selected ? AppColors.primaryColor : AppColors.textMuted;
 
     return InkWell(
       onTap: onTap,
@@ -1387,8 +1310,8 @@ class _RadioRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          color: Colors.white.withOpacity(0.45),
-          border: Border.all(color: Colors.white.withOpacity(0.70)),
+          color: AppColors.surfaceColor.withOpacity(0.95),
+          border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
         ),
         child: Row(
           children: [
@@ -1404,10 +1327,7 @@ class _RadioRow extends StatelessWidget {
                 child: Container(
                   width: 8,
                   height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: c,
-                  ),
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: c),
                 ),
               )
                   : null,
@@ -1419,7 +1339,7 @@ class _RadioRow extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF0F172A),
+                  color: AppColors.textPrimary,
                 ),
               ),
             ),
@@ -1435,23 +1355,21 @@ class _MiniPill extends StatelessWidget {
     required this.text,
     required this.selected,
     required this.onTap,
+    this.selectedColor = AppColors.primaryColor,
   });
 
   final String text;
   final bool selected;
   final VoidCallback onTap;
+  final Color selectedColor;
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected
-        ? const Color(0xFF3B7691).withOpacity(0.12)
-        : Colors.white.withOpacity(0.45);
-
+    final bg = selected ? selectedColor.withOpacity(0.12) : Colors.white;
     final br = selected
-        ? const Color(0xFF63A2BF).withOpacity(0.35)
-        : Colors.white.withOpacity(0.70);
-
-    final tc = selected ? const Color(0xFF3B7691) : const Color(0xFF64748B);
+        ? selectedColor.withOpacity(0.30)
+        : AppColors.dividerColor.withOpacity(0.9);
+    final tc = selected ? selectedColor : AppColors.textSecondary;
 
     return InkWell(
       onTap: onTap,
@@ -1487,8 +1405,20 @@ class _EmptyState extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 10, 18, 96),
       children: [
-        _Glass(
-          radius: 26,
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            color: Colors.white.withOpacity(0.92),
+            border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 22,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1497,7 +1427,7 @@ class _EmptyState extends StatelessWidget {
                 style: GoogleFonts.dmSans(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
-                  color: const Color(0xFF0F172A),
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -1506,20 +1436,20 @@ class _EmptyState extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF64748B),
+                  color: AppColors.textSecondary,
                   height: 1.4,
                 ),
               ),
               const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
-                height: 44,
+                height: 46,
                 child: ElevatedButton.icon(
                   onPressed: onCreate,
                   icon: const Icon(Icons.add),
                   label: const Text("Create New Case"),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B7691),
+                    backgroundColor: AppColors.primaryColor,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -1549,7 +1479,7 @@ class _ErrorState extends StatelessWidget {
           message,
           style: GoogleFonts.inter(
             fontSize: 13,
-            color: const Color(0xFFDC2626),
+            color: AppColors.errorColor,
             fontWeight: FontWeight.w900,
           ),
           textAlign: TextAlign.center,
@@ -1576,7 +1506,6 @@ Map<String, int> _computeCaseNumbers(
       final v = d.data()['caseNo'];
       if (v is int && v > 0) out[d.id] = v;
     }
-    // fallback: compute for missing
     if (out.length != docs.length) {
       final computed = _computeCaseNumbersFallback(docs);
       for (final d in docs) {
@@ -1620,7 +1549,7 @@ int _infectionScore(Map<String, dynamic> data) {
 }
 
 String _riskBucket(int score) {
-  // adjust thresholds if you want
+  // change thresholds anytime
   if (score >= 6) return 'high';
   return 'low';
 }
@@ -1654,7 +1583,7 @@ String _computeDayLabel(dynamic startDate) {
 
 String _assessmentFromScore(int? score) {
   if (score == null) return "No data yet";
-  if (score <= 2) return "No Signs of Infection";
-  if (score <= 5) return "Mild Warning";
-  return "High Risk — Seek Care";
+  if (score <= 2) return "Low sign of infection • keep monitoring";
+  if (score <= 5) return "Warning • watch symptoms";
+  return "High risk • seek care";
 }
