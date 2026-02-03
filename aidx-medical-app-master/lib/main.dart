@@ -10,41 +10,11 @@ import 'package:aidx/screens/splash_screen.dart';
 import 'package:aidx/utils/theme.dart';
 import 'package:flutter/services.dart';
 import 'package:aidx/utils/constants.dart';
-import 'package:aidx/screens/dashboard_screen.dart';
 import 'package:aidx/screens/auth/login_screen.dart';
-import 'package:aidx/screens/profile_screen.dart';
-import 'package:aidx/screens/wearable_screen.dart';
-import 'package:aidx/screens/sos_screen.dart';
-import 'package:aidx/screens/drug_screen.dart';
-import 'package:aidx/screens/symptom_screen.dart';
-import 'package:aidx/screens/chat_screen.dart';
-import 'package:aidx/screens/hospital_screen.dart';
-import 'package:aidx/screens/pharmacy_screen.dart';
-import 'package:aidx/screens/professionals_pharmacy_screen.dart';
-import 'package:aidx/screens/reminder_screen.dart';
-import 'package:aidx/screens/timeline_screen.dart';
-import 'package:aidx/screens/ai_symptom_screen.dart';
-import 'package:aidx/screens/blood_donation_screen.dart';
-import 'package:aidx/screens/health_id_screen.dart';
-import 'package:aidx/screens/qr_scanner_screen.dart';
 import 'package:aidx/services/social_media_service.dart';
-import 'package:aidx/screens/health_habits_screen.dart';
 import 'package:aidx/screens/Homepage.dart';
-import 'package:aidx/screens/sleep_fall_detection_screen.dart';
 import 'package:aidx/providers/community_provider.dart';
-
-import 'package:aidx/screens/community_support_screen.dart';
-import 'package:aidx/screens/first_aid_screen.dart';
-import 'package:aidx/screens/doctor_search_screen.dart';
-import 'package:aidx/screens/pharmacy_search_screen.dart';
-import 'package:aidx/screens/premium_screen.dart';
-import 'package:aidx/screens/backend_example_screen.dart';
 import 'package:aidx/screens/cases_screen.dart';
-
-
-import 'package:aidx/screens/voice_chat_screen.dart';
-import 'package:aidx/screens/report_analyzer_screen.dart';
-
 import 'package:aidx/services/background_service.dart';
 import 'package:aidx/services/app_state_service.dart';
 import 'package:aidx/services/data_persistence_service.dart';
@@ -55,11 +25,10 @@ import 'firebase_options.dart';
 import 'utils/permission_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:aidx/screens/vitals_screen.dart';
 import 'package:aidx/services/android_wearable_service.dart';
 import 'package:aidx/services/wear_os_channel.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:aidx/screens/inbox_screen.dart';
+
 
 // Global RouteObserver for route aware widgets
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
