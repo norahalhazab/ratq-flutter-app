@@ -103,7 +103,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "User",
+                        FirebaseAuth.instance.currentUser?.displayName?.isNotEmpty == true
+                        ? FirebaseAuth.instance.currentUser!.displayName!
+                            : (FirebaseAuth.instance.currentUser?.email ?? "User"),
                               style: GoogleFonts.inter(
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w800,

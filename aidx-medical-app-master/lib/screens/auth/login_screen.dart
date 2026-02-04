@@ -284,7 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
               icon: Icons.person_outline_rounded,
               controller: _nameR,
               validator: (v) => (v == null || v.trim().isEmpty) ? "Enter name" : null,
-              theme: FieldTheme.greyLabelOnBlue, // ✅ labels grey on blue
+              theme: FieldTheme.light, // ✅ labels grey on blue
             ),
             const SizedBox(height: 12),
             _GlassField(
