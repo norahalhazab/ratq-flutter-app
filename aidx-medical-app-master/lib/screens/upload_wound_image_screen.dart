@@ -1,14 +1,17 @@
 import 'dart:io';
-import 'dart:convert'; // Required for JSON decoding
+import 'dart:convert';
+import 'dart:ui'; // Required for ImageFilter
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// Note: We don't need firebase_storage import anymore for this solution
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart'; // Ensure you have this package
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http; // Required for Cloudinary upload
+import 'package:http/http.dart' as http;
+
 import 'upload_success_screen.dart';
 import '../widgets/bottom_nav.dart';
+import '../utils/app_colors.dart'; // Assuming you have this file
 
 class UploadWoundImageScreen extends StatefulWidget {
   const UploadWoundImageScreen({
@@ -17,10 +20,7 @@ class UploadWoundImageScreen extends StatefulWidget {
     required this.whqResponseId,
   });
 
-  /// /users/{uid}/cases/{caseId}
   final String caseId;
-
-  /// /users/{uid}/cases/{caseId}/whqResponses/{whqResponseId}
   final String whqResponseId;
 
   @override
@@ -29,16 +29,8 @@ class UploadWoundImageScreen extends StatefulWidget {
 
 class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
   final ImagePicker _picker = ImagePicker();
-
   File? _selectedImage;
   bool _uploading = false;
-  // Cloudinary HTTP upload doesn't give granular progress easily, so we use a simple loading state.
-  // If you need a progress bar, you'd need a more advanced HTTP client like 'dio'.
-
-  static const Color _primary = Color(0xFF3B7691);
-  static const Color _dark = Color(0xFF0F1729);
-  static const Color _cardBorder = Color(0xFFC9DFE9);
-  static const Color _uploadBg = Color(0x6663A2BF);
 
   static const List<String> _photoGuidelines = [
     "Use good lighting",
@@ -49,7 +41,7 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
   Future<void> _pickFromGallery() async {
     final XFile? x = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85, // Cloudinary handles large images well, so 85 is fine
+      imageQuality: 85,
     );
     if (x == null) return;
     setState(() => _selectedImage = File(x.path));
@@ -64,8 +56,6 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
     if (x == null) return;
     setState(() => _selectedImage = File(x.path));
   }
-
-  /// Uploads image to Cloudinary (Free, No Credit Card, Works in KSA)
 
   Future<void> _uploadToCloudinary({required String source}) async {
     final file = _selectedImage;
@@ -93,24 +83,25 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
       final responseData = await response.stream.toBytes();
       final responseString = String.fromCharCodes(responseData);
       final jsonMap = jsonDecode(responseString);
+
       final String downloadUrl = jsonMap['secure_url'];
 
       // -----------------------------------------------------
-      // 2. CALL AI MODEL (STRICT MODE)
+      // 2. CALL AI MODEL
       // -----------------------------------------------------
-      int? detectedErythema;
-      String? detectedExudate;
-
-      // Replace with your Render URL
+      // Replace with your Hugging Face or Render URL
       final aiUrl = Uri.parse('https://laura-potato-ratq-ai.hf.space/analyze');
-
-      print("Sending to AI..."); // Debug log
 
       final aiResponse = await http.post(
         aiUrl,
         headers: {"Content-Type": "application/json"},
+        // Use downloadUrl directly if using Hugging Face (16GB RAM)
+        // If using Render Free Tier, you might want to resize it here.
         body: jsonEncode({"imageUrl": downloadUrl}),
       ).timeout(const Duration(seconds: 90));
+
+      int? detectedErythema;
+      String? detectedExudate;
 
       if (aiResponse.statusCode == 200) {
         final aiData = jsonDecode(aiResponse.body);
@@ -119,18 +110,15 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
         detectedErythema = aiData['erythema'];
         detectedExudate = aiData['exudate'];
 
-        // CRITICAL CHECK: If AI returned null/error, STOP here.
         if (detectedErythema == null && detectedExudate == null) {
           throw("AI analysis returned empty results.");
         }
-
       } else {
-        // If server error (500) or not found (404), STOP.
         throw("AI Server Error: ${aiResponse.statusCode}");
       }
 
       // -----------------------------------------------------
-      // 3. SAVE TO FIRESTORE (Only runs if AI succeeded)
+      // 3. SAVE TO FIRESTORE
       // -----------------------------------------------------
       final uid = user.uid;
       final whqDocRef = FirebaseFirestore.instance
@@ -154,7 +142,6 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
 
       if (!mounted) return;
 
-      // Navigate ONLY after successful save
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const UploadSuccessScreen()),
@@ -163,12 +150,10 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
     } catch (e) {
       print("Upload Error: $e");
       if (!mounted) return;
-
-      // Show error to user
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Analysis Failed: $e"),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.errorColor,
           duration: const Duration(seconds: 4),
         ),
       );
@@ -176,256 +161,455 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
       if (mounted) setState(() => _uploading = false);
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.backgroundColor,
       bottomNavigationBar: const AppBottomNav(currentIndex: 1),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 90),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: _dark),
-                          onPressed: () => Navigator.pop(context),
+      body: Stack(
+        children: [
+          // 1. Consistent Blue Glassy Background
+          const _BlueGlassyBackground(),
+
+          SafeArea(
+            child: Column(
+              children: [
+                // ===== Header =====
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Row(
+                    children: [
+                      _WhitePillButton(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 18,
+                          color: AppColors.textPrimary,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  "Capture Wound Image",
-                                  style: TextStyle(
-                                    fontFamily: "DM Sans",
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: _dark,
-                                    height: 32 / 24,
-                                  ),
-                                ),
-                                SizedBox(height: 2),
-                                Text(
-                                  "Take a clear photo of your wound for analysis",
-                                  style: TextStyle(
-                                    fontFamily: "DM Sans",
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w400,
-                                    color: _dark,
-                                    height: 24 / 16,
-                                  ),
-                                ),
-                              ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Capture Wound Image",
+                              style: GoogleFonts.dmSans(
+                                fontSize: 18, // Matches cases screen headers
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
 
-                  const SizedBox(height: 18),
+                const SizedBox(height: 18),
 
-                  // Upload area
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: _uploadBg,
-                      borderRadius: BorderRadius.circular(32),
-                    ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       children: [
-                        Container(
-                          width: 88,
-                          height: 88,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.camera_alt_outlined, size: 34, color: _dark),
-                        ),
-                        const SizedBox(height: 14),
-
-                        if (_selectedImage != null) ...[
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: Image.file(
-                              _selectedImage!,
-                              height: 180,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                        ],
-
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: _uploadBg,
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(color: _dark, width: 1),
-                          ),
+                        // ===== 2. Glassy Upload Card =====
+                        _GlassyCard(
                           child: Column(
                             children: [
-                              const Text(
-                                "Drag your photo to start the analysis",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: "Inter",
-                                  fontSize: 14,
-                                  color: Color(0xFF0B0B0B),
-                                  height: 20 / 14,
+                              // Icon Circle
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      AppColors.primaryColor.withOpacity(0.15),
+                                      AppColors.primaryColor.withOpacity(0.05),
+                                    ],
+                                  ),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.primaryColor.withOpacity(0.2),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Icon(
+                                    Icons.camera_alt_outlined,
+                                    size: 32,
+                                    color: AppColors.primaryColor
                                 ),
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 20),
 
+                              // Preview Image
+                              if (_selectedImage != null) ...[
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: Image.file(
+                                    _selectedImage!,
+                                    height: 220,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                              ],
+
+                              Text(
+                                "Upload or take a photo",
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                "Ensure the wound is clearly visible",
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+
+                              const SizedBox(height: 24),
+
+                              // Camera / Gallery Buttons
                               Row(
-                                children: const [
-                                  Expanded(child: Divider(color: Color(0xFFE7E7E7))),
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 10),
-                                    child: Text(
-                                      "OR",
-                                      style: TextStyle(
-                                        fontFamily: "Inter",
-                                        fontSize: 12,
-                                        color: Color(0xFF6D6D6D),
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(child: Divider(color: Color(0xFFE7E7E7))),
-                                ],
-                              ),
-
-                              const SizedBox(height: 10),
-
-                              Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
-                                alignment: WrapAlignment.center,
                                 children: [
-                                  OutlinedButton.icon(
-                                    onPressed: _uploading ? null : _takePhoto,
-                                    icon: const Icon(Icons.photo_camera_outlined),
-                                    label: const Text("Take photo"),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: _primary,
-                                      side: const BorderSide(color: _primary),
-                                      backgroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  Expanded(
+                                    child: _SecondaryActionButton(
+                                      label: "Camera",
+                                      icon: Icons.camera_alt_outlined,
+                                      onTap: _uploading ? null : _takePhoto,
                                     ),
                                   ),
-                                  OutlinedButton.icon(
-                                    onPressed: _uploading ? null : _pickFromGallery,
-                                    icon: const Icon(Icons.photo_library_outlined),
-                                    label: const Text("Upload image"),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: _primary,
-                                      side: const BorderSide(color: _primary),
-                                      backgroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _SecondaryActionButton(
+                                      label: "Gallery",
+                                      icon: Icons.photo_library_outlined,
+                                      onTap: _uploading ? null : _pickFromGallery,
                                     ),
                                   ),
                                 ],
                               ),
 
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 20),
 
-                              if (_selectedImage != null)
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: _uploading
-                                        ? null
-                                        : () => _uploadToCloudinary(source: "camera_or_gallery"),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: _primary,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                              // ===== 3. Gradient Start Button =====
+                              SizedBox(
+                                width: double.infinity,
+                                child: _PrimaryGradientButton(
+                                  label: _uploading ? "Analyzing..." : "Start Analysis",
+                                  icon: Icons.auto_awesome,
+                                  isLoading: _uploading,
+                                  onTap: (_selectedImage != null && !_uploading)
+                                      ? () => _uploadToCloudinary(source: "camera_or_gallery")
+                                      : null, // Disabled if no image
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Guidelines Section
+                        _GlassyCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primaryColor),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Photo Guidelines",
+                                    style: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 15,
+                                      color: AppColors.textPrimary,
                                     ),
-                                    child: _uploading
-                                        ? Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: const [
-                                        SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              for (var guide in _photoGuidelines)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        margin: const EdgeInsets.only(top: 6),
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryColor.withOpacity(0.6),
+                                          shape: BoxShape.circle,
                                         ),
-                                        SizedBox(width: 10),
-                                        Text("Uploading..."),
-                                      ],
-                                    )
-                                        : const Text("Start analysis"),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          guide,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.textSecondary,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                             ],
                           ),
                         ),
+                        const SizedBox(height: 100), // Bottom padding
                       ],
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-                  const SizedBox(height: 18),
+// =================================================================
+// REUSABLE WIDGETS (Copied/Adapted from Case Details Screen)
+// =================================================================
 
-                  // Guidelines card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _cardBorder),
-                      boxShadow: const [BoxShadow(blurRadius: 1, offset: Offset(0, 1), color: Colors.white)],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "• Photo Guidelines",
-                          style: TextStyle(
-                            fontFamily: "Inter",
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: Color(0xFF003147),
-                            height: 20 / 13,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        for (int i = 0; i < _photoGuidelines.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              "${i + 1}. ${_photoGuidelines[i]}",
-                              style: const TextStyle(
-                                fontFamily: "Inter",
-                                fontWeight: FontWeight.w400,
-                                fontSize: 13,
-                                color: _primary,
-                                height: 20 / 13,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
+class _BlueGlassyBackground extends StatelessWidget {
+  const _BlueGlassyBackground();
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFEAF5FB), Color(0xFFDCEEF7), Color(0xFFF7FBFF)],
+            ),
+          ),
+        ),
+        Positioned(
+          top: -170, left: -150,
+          child: _Blob(size: 520, color: AppColors.secondaryColor.withOpacity(0.22)),
+        ),
+        Positioned(
+          top: 120, right: -180,
+          child: _Blob(size: 560, color: AppColors.primaryColor.withOpacity(0.10)),
+        ),
+        // Glass Blur
+        BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+          child: Container(color: Colors.transparent),
+        ),
+      ],
+    );
+  }
+}
+
+class _Blob extends StatelessWidget {
+  const _Blob({required this.size, required this.color});
+  final double size;
+  final Color color;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+}
+
+class _GlassyCard extends StatelessWidget {
+  const _GlassyCard({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            color: Colors.white.withOpacity(0.92),
+            border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x11000000),
+                blurRadius: 22,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _WhitePillButton extends StatelessWidget {
+  const _WhitePillButton({required this.child, required this.onTap});
+  final Widget child;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: Colors.white.withOpacity(0.90),
+          border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------
+// NEW BUTTON STYLES
+// -----------------------------------------------------------
+
+class _PrimaryGradientButton extends StatelessWidget {
+  const _PrimaryGradientButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.isLoading = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDisabled = onTap == null;
+
+    return Opacity(
+      opacity: isDisabled ? 0.5 : 1.0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          height: 54,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: AppColors.primaryGradient, // Liquid gradient style
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryColor.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+                spreadRadius: -5,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isLoading)
+                const SizedBox(
+                  width: 20, height: 20,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                )
+              else
+                Icon(icon, color: Colors.white, size: 22),
+
+              const SizedBox(width: 10),
+
+              Text(
+                label,
+                style: GoogleFonts.dmSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryActionButton extends StatelessWidget {
+  const _SecondaryActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          border: Border.all(color: AppColors.primaryColor.withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: AppColors.primaryColor, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryColor,
               ),
             ),
           ],
@@ -434,6 +618,3 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
     );
   }
 }
-
-
-
