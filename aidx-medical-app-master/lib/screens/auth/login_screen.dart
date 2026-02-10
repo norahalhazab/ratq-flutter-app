@@ -209,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
               icon: Icons.mail_outline_rounded,
               controller: _email,
               validator: (v) => (v == null || v.trim().isEmpty) ? "Enter email" : null,
-              theme: FieldTheme.light,
+              theme: FieldTheme.light ,
             ),
             const SizedBox(height: 12),
             _GlassField(
@@ -295,7 +295,7 @@ class _LoginScreenState extends State<LoginScreen> {
               icon: Icons.mail_outline_rounded,
               controller: _emailR,
               validator: (v) => (v == null || v.trim().isEmpty) ? "Enter email" : null,
-              theme: FieldTheme.greyLabelOnBlue, // ✅ labels grey on blue
+              theme: FieldTheme.light, // ✅ labels grey on blue
             ),
             const SizedBox(height: 12),
             _GlassField(
@@ -311,7 +311,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () => setState(() => _showPwR = !_showPwR),
               ),
               validator: (v) => (v == null || v.length < 6) ? "Password must be 6+ chars" : null,
-              theme: FieldTheme.greyLabelOnBlue, // ✅ labels grey on blue
+              theme: FieldTheme.light, // ✅ labels grey on blue
             ),
             const SizedBox(height: 12),
             _GlassField(
@@ -327,7 +327,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () => setState(() => _showPwC = !_showPwC),
               ),
               validator: (v) => (v != _passR.text) ? "Passwords do not match" : null,
-              theme: FieldTheme.greyLabelOnBlue, // ✅ labels grey on blue
+              theme: FieldTheme.light, // ✅ labels grey on blue
             ),
             const SizedBox(height: 16),
             _LiquidGlassButton(

@@ -175,7 +175,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       );
 
       // ✅ reload to make sure the UI reflects latest saved values
-      await _loadProfile();
+      await Future.delayed(const Duration(milliseconds: 600));
+
+      if (!mounted) return;
+      Navigator.pop(context, true); // optional: return "true" to refresh previous page
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

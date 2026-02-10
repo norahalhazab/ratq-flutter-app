@@ -1,4 +1,5 @@
 // homepage.dart
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../utils/app_colors.dart';
 import '../widgets/bottom_nav.dart';
 import 'create_case_screen.dart';
+import 'smart_watch_simulator_service.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -19,6 +21,59 @@ class Homepage extends StatefulWidget {
 
 class _HomepageState extends State<Homepage> {
   String? _selectedCaseId;
+
+  // ✅ Watch simulator service (values update when user connects from simulator screen)
+  final _watch = SmartWatchSimulatorService.instance;
+  StreamSubscription<void>? _watchSub;
+
+  // ✅ small history for charts
+  final List<int> _hrHistory = [];
+  final List<double> _tempHistory = [];
+  final List<double> _bpSysHistory = [];
+  final List<double> _bpDiaHistory = [];
+  static const int _historyMax = 28;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Listen to watch vitals stream and record values for charts
+    _watchSub = _watch.vitalsStream.listen((_) {
+      _pushVitalsToHistory();
+      if (mounted) setState(() {});
+    });
+
+    // seed initial values (optional)
+    _pushVitalsToHistory();
+  }
+
+  @override
+  void dispose() {
+    _watchSub?.cancel();
+    super.dispose();
+  }
+
+  void _pushVitalsToHistory() {
+    // Heart rate
+    _hrHistory.add(_watch.heartRate);
+    if (_hrHistory.length > _historyMax) _hrHistory.removeAt(0);
+
+    // Temperature
+    _tempHistory.add(_watch.temperature);
+    if (_tempHistory.length > _historyMax) _tempHistory.removeAt(0);
+
+    // Blood pressure parse "SYS/DIA"
+    final parts = _watch.bloodPressure.split('/');
+    double sys = 0, dia = 0;
+    if (parts.length == 2) {
+      sys = double.tryParse(parts[0].trim()) ?? 0;
+      dia = double.tryParse(parts[1].trim()) ?? 0;
+    }
+    _bpSysHistory.add(sys);
+    _bpDiaHistory.add(dia);
+    if (_bpSysHistory.length > _historyMax) _bpSysHistory.removeAt(0);
+    if (_bpDiaHistory.length > _historyMax) _bpDiaHistory.removeAt(0);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,8 +137,7 @@ class _HomepageState extends State<Homepage> {
                     // Ensure a selected case (if any exist)
                     if (docs.isNotEmpty) {
                       final ids = docs.map((d) => d.id).toList();
-                      if (_selectedCaseId == null ||
-                          !ids.contains(_selectedCaseId)) {
+                      if (_selectedCaseId == null || !ids.contains(_selectedCaseId)) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (!mounted) return;
                           setState(() => _selectedCaseId = ids.first);
@@ -113,13 +167,20 @@ class _HomepageState extends State<Homepage> {
                         selectedData['surgeryDate']);
 
                     final daysSince = _daysSince(startValue);
-                    final status =
-                    ((selectedData?['status'] as String?) ?? 'active')
-                        .toLowerCase();
+                    final status = ((selectedData?['status'] as String?) ?? 'active').toLowerCase();
                     final isClosed = status == 'closed';
 
                     final score = selectedData == null ? null : _infectionScore(selectedData);
                     final assessment = _assessmentFromScore(score);
+
+                    // ✅ Watch values
+                    final isConnected = _watch.isConnected;
+                    final hrText = isConnected ? "${_watch.heartRate}" : "---";
+                    final tempText = isConnected ? _watch.temperature.toStringAsFixed(1) : "---";
+                    final bpText = isConnected ? _watch.bloodPressure : "--- / ---";
+
+                    // ✅ Infection score metric card (replacing Oxygen)
+                    final infectionMetricText = (score == null) ? "---" : score.toString();
 
                     return CustomScrollView(
                       slivers: [
@@ -129,9 +190,7 @@ class _HomepageState extends State<Homepage> {
                             child: Row(
                               children: [
                                 _AvatarButton(
-                                  letter: (userName.isNotEmpty
-                                      ? userName.characters.first
-                                      : "U")
+                                  letter: (userName.isNotEmpty ? userName.characters.first : "U")
                                       .toUpperCase(),
                                 ),
                                 const SizedBox(width: 10),
@@ -161,18 +220,8 @@ class _HomepageState extends State<Homepage> {
                                     ],
                                   ),
                                 ),
-                                _HeaderPill(
-                                  label: "New Wound",
-                                  icon: Icons.add,
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const CreateCaseScreen(),
-                                      ),
-                                    );
-                                  },
-                                ),
+
+                                // ✅ removed "New Wound" button here (as requested)
                               ],
                             ),
                           ),
@@ -256,9 +305,7 @@ class _HomepageState extends State<Homepage> {
                             padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
                             child: _CaseSummaryCard(
                               enabled: selectedDoc != null,
-                              title: selectedDoc == null
-                                  ? "Select a case"
-                                  : _caseTitleForDoc(selectedDoc, docs),
+                              title: selectedDoc == null ? "Select a case" : _caseTitleForDoc(selectedDoc, docs),
                               dayLabel: selectedDoc == null
                                   ? "Day --"
                                   : "Day ${daysSince == null ? "--" : daysSince.toString()}",
@@ -267,8 +314,7 @@ class _HomepageState extends State<Homepage> {
                               assessment: assessment,
                               startDate: _formatDate(startValue),
                               lastUpdated: _formatDate(
-                                selectedData?['lastUpdated'] ??
-                                    selectedData?['createdAt'],
+                                selectedData?['lastUpdated'] ?? selectedData?['createdAt'],
                               ),
                               whqCountBuilder: selectedDoc == null
                                   ? null
@@ -287,24 +333,24 @@ class _HomepageState extends State<Homepage> {
                             delegate: SliverChildListDelegate(
                               [
                                 Row(
-                                  children: const [
+                                  children: [
                                     Expanded(
                                       child: _MetricGlassCard(
                                         label: "Heart\nRate",
-                                        value: "---",
+                                        value: hrText,
                                         unit: "bpm",
-                                        badgeText: "Not synced",
+                                        badgeText: isConnected ? "Connected" : "Not synced",
                                         icon: Icons.favorite_border,
                                         tint: AppColors.errorColor,
                                       ),
                                     ),
-                                    SizedBox(width: 12),
+                                    const SizedBox(width: 12),
                                     Expanded(
                                       child: _MetricGlassCard(
                                         label: "Blood\nPressure",
-                                        value: "--- / ---",
+                                        value: bpText,
                                         unit: "mmHg",
-                                        badgeText: "Not synced",
+                                        badgeText: isConnected ? "Connected" : "Not synced",
                                         icon: Icons.water_drop_outlined,
                                         tint: AppColors.secondaryColor,
                                       ),
@@ -313,25 +359,27 @@ class _HomepageState extends State<Homepage> {
                                 ),
                                 const SizedBox(height: 12),
                                 Row(
-                                  children: const [
+                                  children: [
                                     Expanded(
                                       child: _MetricGlassCard(
                                         label: "Temperature",
-                                        value: "---",
+                                        value: tempText,
                                         unit: "°C",
-                                        badgeText: "Not synced",
+                                        badgeText: isConnected ? "Connected" : "Not synced",
                                         icon: Icons.thermostat_outlined,
                                         tint: AppColors.warningColor,
                                       ),
                                     ),
-                                    SizedBox(width: 12),
+                                    const SizedBox(width: 12),
+
+                                    // ✅ REPLACED Oxygen with Infection Score
                                     Expanded(
                                       child: _MetricGlassCard(
-                                        label: "Oxygen",
-                                        value: "---",
-                                        unit: "%",
-                                        badgeText: "Not synced",
-                                        icon: Icons.bloodtype_outlined,
+                                        label: "Infection\nScore",
+                                        value: infectionMetricText,
+                                        unit: "",
+                                        badgeText: selectedDoc == null ? "No case" : assessment,
+                                        icon: Icons.health_and_safety_outlined,
                                         tint: AppColors.primaryColor,
                                       ),
                                     ),
@@ -339,20 +387,34 @@ class _HomepageState extends State<Homepage> {
                                 ),
                                 const SizedBox(height: 12),
 
+                                // ✅ Real vitals charts from simulator history (simple sparklines)
                                 _GlassSectionCard(
-                                  title: "Trends (placeholder)",
-                                  subtitle:
-                                  "Charts will automatically display when smartwatch + WHQ data is connected.",
+                                  title: "Trends",
+                                  subtitle: isConnected
+                                      ? "Live data from watch simulator (updates every 2s)."
+                                      : "Open Watch Simulator (Settings) and press Connect to see live charts.",
                                   child: Column(
-                                    children: const [
-                                      _MiniChartPlaceholder(
-                                        title: "Infection score trend",
-                                        hint: "Line chart • last 14 days",
+                                    children: [
+                                      _MiniChartSparkline(
+                                        title: "Heart rate trend",
+                                        hint: "last ${_historyMax} points",
+                                        values: _hrHistory.map((e) => e.toDouble()).toList(),
+                                        emptyHint: "No data yet",
                                       ),
-                                      SizedBox(height: 12),
-                                      _MiniChartPlaceholder(
-                                        title: "Vitals trend",
-                                        hint: "Heart rate / Temp • last 7 days",
+                                      const SizedBox(height: 12),
+                                      _MiniChartSparkline(
+                                        title: "Temperature trend",
+                                        hint: "last ${_historyMax} points",
+                                        values: _tempHistory,
+                                        emptyHint: "No data yet",
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _MiniChartDualSparkline(
+                                        title: "Blood pressure trend",
+                                        hint: "SYS / DIA • last ${_historyMax} points",
+                                        valuesA: _bpSysHistory,
+                                        valuesB: _bpDiaHistory,
+                                        emptyHint: "No data yet",
                                       ),
                                     ],
                                   ),
@@ -376,15 +438,13 @@ class _HomepageState extends State<Homepage> {
                                       _InsightRow(
                                         icon: Icons.rule_rounded,
                                         title: "Risk pattern",
-                                        value:
-                                        "compare WHQ answers vs score changes",
+                                        value: "compare WHQ answers vs score changes",
                                       ),
                                       const SizedBox(height: 10),
                                       _InsightRow(
                                         icon: Icons.auto_graph_rounded,
                                         title: "Forecast (later)",
-                                        value:
-                                        "basic trend-based early warning signal",
+                                        value: "basic trend-based early warning signal",
                                       ),
                                       const SizedBox(height: 14),
                                       _WhiteHintPill(
@@ -562,11 +622,9 @@ class _HomepageState extends State<Homepage> {
     if (selected == null) return "Select case";
     final data = selected.data();
 
-    // Prefer stable numbering if available
     final caseNo = data['caseNo'];
     if (caseNo is int && caseNo > 0) return "Wound $caseNo";
 
-    // Otherwise fallback to title or "Wound"
     final title = _caseTitleFromData(data, fallback: "Wound");
     return title;
   }
@@ -581,8 +639,7 @@ class _HomepageState extends State<Homepage> {
     return fallback;
   }
 
-  static String _getUserName(Map<String, dynamic>? data,
-      {required String fallback}) {
+  static String _getUserName(Map<String, dynamic>? data, {required String fallback}) {
     if (data == null) return fallback;
     final v = data['name'] ?? data['username'] ?? data['displayName'];
     final s = (v is String) ? v.trim() : '';
@@ -681,40 +738,6 @@ class _AvatarButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _HeaderPill extends StatelessWidget {
-  const _HeaderPill({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return _WhitePillButton(
-      onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: AppColors.primaryColor),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-              color: AppColors.primaryColor,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -863,8 +886,7 @@ class _CasePickerPill extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.primaryColor),
+              const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryColor),
             ],
           ),
         ),
@@ -909,9 +931,7 @@ class _CaseSummaryCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(26),
           color: Colors.white.withOpacity(0.92),
-          border: Border.all(
-            color: AppColors.primaryColor.withOpacity(0.10),
-          ),
+          border: Border.all(color: AppColors.primaryColor.withOpacity(0.10)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
@@ -966,7 +986,6 @@ class _CaseSummaryCard extends StatelessWidget {
               const SizedBox(height: 12),
               Divider(height: 1, color: AppColors.dividerColor.withOpacity(0.9)),
               const SizedBox(height: 12),
-
               Row(
                 children: [
                   Expanded(
@@ -984,9 +1003,7 @@ class _CaseSummaryCard extends StatelessWidget {
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
-
               Row(
                 children: [
                   Expanded(
@@ -1113,7 +1130,6 @@ class _WhqCountBuilder extends StatelessWidget {
         .collection('cases')
         .doc(caseId);
 
-    // We try common subcollection names. Missing collections return 0 docs (no crash).
     final q1 = base.collection('whq');
     final q2 = base.collection('whqResponses');
     final q3 = base.collection('whq_logs');
@@ -1215,21 +1231,22 @@ class _MetricGlassCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
-                  unit,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textMuted,
+              if (unit.trim().isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Text(
+                    unit,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
-
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -1240,6 +1257,8 @@ class _MetricGlassCard extends StatelessWidget {
             ),
             child: Text(
               badgeText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
                 fontSize: 11.8,
                 fontWeight: FontWeight.w900,
@@ -1311,17 +1330,24 @@ class _GlassSectionCard extends StatelessWidget {
   }
 }
 
-class _MiniChartPlaceholder extends StatelessWidget {
-  const _MiniChartPlaceholder({
+/// Single sparkline
+class _MiniChartSparkline extends StatelessWidget {
+  const _MiniChartSparkline({
     required this.title,
     required this.hint,
+    required this.values,
+    required this.emptyHint,
   });
 
   final String title;
   final String hint;
+  final List<double> values;
+  final String emptyHint;
 
   @override
   Widget build(BuildContext context) {
+    final hasData = values.where((v) => v != 0).isNotEmpty && values.length >= 3;
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
@@ -1334,8 +1360,7 @@ class _MiniChartPlaceholder extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.show_chart_rounded,
-                  color: AppColors.primaryColor, size: 18),
+              const Icon(Icons.show_chart_rounded, color: AppColors.primaryColor, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -1357,9 +1382,20 @@ class _MiniChartPlaceholder extends StatelessWidget {
               color: Colors.white.withOpacity(0.90),
               border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
             ),
-            child: CustomPaint(
-              painter: _SparklinePainter(),
+            child: hasData
+                ? CustomPaint(
+              painter: _SparklineFromValuesPainter(values: values),
               child: const SizedBox.expand(),
+            )
+                : Center(
+              child: Text(
+                emptyHint,
+                style: GoogleFonts.inter(
+                  fontSize: 12.2,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textMuted,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -1377,29 +1413,102 @@ class _MiniChartPlaceholder extends StatelessWidget {
   }
 }
 
-class _SparklinePainter extends CustomPainter {
+/// Two sparklines (SYS/DIA) in one chart
+class _MiniChartDualSparkline extends StatelessWidget {
+  const _MiniChartDualSparkline({
+    required this.title,
+    required this.hint,
+    required this.valuesA,
+    required this.valuesB,
+    required this.emptyHint,
+  });
+
+  final String title;
+  final String hint;
+  final List<double> valuesA;
+  final List<double> valuesB;
+  final String emptyHint;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasData = valuesA.where((v) => v != 0).isNotEmpty &&
+        valuesB.where((v) => v != 0).isNotEmpty &&
+        valuesA.length >= 3 &&
+        valuesB.length >= 3;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        color: AppColors.surfaceColor.withOpacity(0.95),
+        border: Border.all(color: AppColors.primaryColor.withOpacity(0.10)),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.monitor_heart_outlined, color: AppColors.primaryColor, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 84,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: Colors.white.withOpacity(0.90),
+              border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+            ),
+            child: hasData
+                ? CustomPaint(
+              painter: _DualSparklinePainter(a: valuesA, b: valuesB),
+              child: const SizedBox.expand(),
+            )
+                : Center(
+              child: Text(
+                emptyHint,
+                style: GoogleFonts.inter(
+                  fontSize: 12.2,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            hint,
+            style: GoogleFonts.inter(
+              fontSize: 12.2,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SparklineFromValuesPainter extends CustomPainter {
+  _SparklineFromValuesPainter({required this.values});
+
+  final List<double> values;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.primaryColor.withOpacity(0.35)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final points = <Offset>[];
-    final values = <double>[0.15, 0.35, 0.22, 0.55, 0.48, 0.72, 0.60, 0.85, 0.70];
-    for (int i = 0; i < values.length; i++) {
-      final x = (i / (values.length - 1)) * (size.width - 20) + 10;
-      final y = (1 - values[i]) * (size.height - 20) + 10;
-      points.add(Offset(x, y));
-    }
-
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (int i = 1; i < points.length; i++) {
-      path.lineTo(points[i].dx, points[i].dy);
-    }
-
-    // Soft grid dots
+    // grid dots
     final dotPaint = Paint()..color = Colors.black.withOpacity(0.06);
     for (double x = 10; x < size.width; x += 22) {
       for (double y = 10; y < size.height; y += 22) {
@@ -1407,11 +1516,100 @@ class _SparklinePainter extends CustomPainter {
       }
     }
 
+    if (values.length < 2) return;
+
+    final minV = values.reduce((a, b) => a < b ? a : b);
+    final maxV = values.reduce((a, b) => a > b ? a : b);
+    final range = (maxV - minV).abs() < 1e-6 ? 1.0 : (maxV - minV);
+
+    final paint = Paint()
+      ..color = AppColors.primaryColor.withOpacity(0.40)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final pts = <Offset>[];
+    for (int i = 0; i < values.length; i++) {
+      final x = (i / (values.length - 1)) * (size.width - 20) + 10;
+      final norm = (values[i] - minV) / range;
+      final y = (1 - norm) * (size.height - 20) + 10;
+      pts.add(Offset(x, y));
+    }
+
+    final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+    for (int i = 1; i < pts.length; i++) {
+      path.lineTo(pts[i].dx, pts[i].dy);
+    }
+
     canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SparklineFromValuesPainter oldDelegate) {
+    return oldDelegate.values != values;
+  }
+}
+
+class _DualSparklinePainter extends CustomPainter {
+  _DualSparklinePainter({required this.a, required this.b});
+
+  final List<double> a;
+  final List<double> b;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // grid dots
+    final dotPaint = Paint()..color = Colors.black.withOpacity(0.06);
+    for (double x = 10; x < size.width; x += 22) {
+      for (double y = 10; y < size.height; y += 22) {
+        canvas.drawCircle(Offset(x, y), 1.4, dotPaint);
+      }
+    }
+
+    if (a.length < 2 || b.length < 2) return;
+
+    final all = [...a, ...b];
+    final minV = all.reduce((x, y) => x < y ? x : y);
+    final maxV = all.reduce((x, y) => x > y ? x : y);
+    final range = (maxV - minV).abs() < 1e-6 ? 1.0 : (maxV - minV);
+
+    // line A (SYS)
+    final paintA = Paint()
+      ..color = AppColors.primaryColor.withOpacity(0.42)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // line B (DIA)
+    final paintB = Paint()
+      ..color = AppColors.secondaryColor.withOpacity(0.42)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    Path pathFrom(List<double> values) {
+      final pts = <Offset>[];
+      for (int i = 0; i < values.length; i++) {
+        final x = (i / (values.length - 1)) * (size.width - 20) + 10;
+        final norm = (values[i] - minV) / range;
+        final y = (1 - norm) * (size.height - 20) + 10;
+        pts.add(Offset(x, y));
+      }
+      final p = Path()..moveTo(pts.first.dx, pts.first.dy);
+      for (int i = 1; i < pts.length; i++) {
+        p.lineTo(pts[i].dx, pts[i].dy);
+      }
+      return p;
+    }
+
+    canvas.drawPath(pathFrom(a), paintA);
+    canvas.drawPath(pathFrom(b), paintB);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DualSparklinePainter oldDelegate) {
+    return oldDelegate.a != a || oldDelegate.b != b;
+  }
 }
 
 class _InsightRow extends StatelessWidget {
@@ -1475,8 +1673,7 @@ class _WhiteHintPill extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.lightbulb_outline_rounded,
-              size: 18, color: AppColors.primaryColor),
+          const Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppColors.primaryColor),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
