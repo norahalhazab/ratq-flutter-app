@@ -47,7 +47,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
     _TabItem(icon: Icons.folder_outlined),
     _TabItem(icon: Icons.add),
     _TabItem(icon: Icons.notifications_none_outlined),
-    _TabItem(icon: Icons.person_outline),
+    _TabItem(icon: Icons.settings_outlined),
   ];
 
   @override
