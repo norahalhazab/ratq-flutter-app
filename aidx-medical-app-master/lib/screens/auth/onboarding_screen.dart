@@ -78,31 +78,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           SafeArea(
             child: Stack(
               children: [
-                // ✅ top progress lines (FULL WIDTH like Arc)
-                Positioned(
-                  left: 18,
-                  right: 18,
-                  top: 15,
-                  child: _TopProgressFullWidth(index: _index, total: _total),
-                ),
-
-                // ✅ Skip bigger (top-right)
-                Positioned(
-                  right: 16,
-                  top: 10,
-                  child: TextButton(
-                    onPressed: _finish,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white.withOpacity(0.96),
-                      textStyle: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    ),
-                    child: const Text("Skip"),
-                  ),
-                ),
 
 // ✅ PageView (show image on page 1 & 2)
                 PageView.builder(
@@ -143,17 +118,53 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           Align(
                             alignment: Alignment.topCenter,
                             child: Padding(
-                              padding: const EdgeInsets.only(top: 22),
+                              padding: const EdgeInsets.only(top: 60),
                               child: Image.asset(
                                 "assets/images/logo2.png",
-                                height: 420,
+                                height: 220,
+                                width: 220,
                                 fit: BoxFit.contain,
                               ),
+
                             ),
                           ),
                       ],
                     );
                   },
+                ),
+
+                // ✅ top progress lines (FULL WIDTH like Arc)
+                Positioned(
+                  left: 18,
+                  right: 18,
+                  top: 15,
+                  child: _TopProgressFullWidth(index: _index, total: _total),
+                ),
+
+                // ✅ Skip bigger (top-right)
+                Positioned(
+                  right: 16,
+                  top: 10,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LoginScreen(startWithSignUp: true),
+                        ),
+                      );
+                    },
+
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white.withOpacity(0.96),
+                      textStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    ),
+                    child: const Text("Skip"),
+                  ),
                 ),
 
                 // ✅ Title + subtitle positions like Arc (lower-left)
@@ -208,17 +219,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
 
-                // ✅ Bottom "Already have an account? Sign in"
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 28,
-                  child: Center(
-                    child: _BottomSignIn(
-                      onSignIn: _finish,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

@@ -7,11 +7,14 @@ import '../Homepage.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.startWithSignUp = false});
+
+  final bool startWithSignUp;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
+
 
 class _LoginScreenState extends State<LoginScreen> {
   // Brand

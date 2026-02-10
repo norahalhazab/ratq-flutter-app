@@ -18,7 +18,7 @@ import 'package:aidx/screens/cases_screen.dart';
 import 'package:aidx/services/background_service.dart';
 import 'package:aidx/services/app_state_service.dart';
 import 'package:aidx/services/data_persistence_service.dart';
-
+import 'package:aidx/screens/smart_watch_simulator_screen.dart';
 import 'dart:async' show unawaited;
 
 import 'firebase_options.dart';

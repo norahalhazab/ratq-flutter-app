@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'personal_information_screen.dart';
 import 'auth/login_screen.dart';
 import '../widgets/bottom_nav.dart';
+import 'smart_watch_simulator_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -52,7 +53,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // Top bar
               Row(
                 children: [
-                  _TopBackButton(onTap: () => Navigator.pop(context)),
                   const Spacer(),
                   Text(
                     "Settings",
@@ -114,7 +114,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              "Tap to view profile",
+                              "Tap to edit profile",
                               style: GoogleFonts.inter(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
@@ -153,19 +153,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   children: [
                     _SettingRow(
-                      icon: Icons.person_outline_rounded,
-                      title: "Profile details",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const PersonalInformationScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const _DividerLine(),
-                    _SettingRow(
                       icon: Icons.notifications_none_rounded,
                       title: "Notifications",
                       onTap: _comingSoon,
@@ -177,10 +164,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const PersonalInformationScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const SmartWatchSimulatorScreen(),
+                          ),
                         );
                       },
                     ),
+
                     const _DividerLine(),
                     _SettingRow(
                       icon: Icons.logout_rounded,
