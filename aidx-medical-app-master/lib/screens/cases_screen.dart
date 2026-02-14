@@ -12,8 +12,6 @@ import 'create_case_screen.dart';
 import 'whq_screen.dart';
 import '../utils/app_colors.dart';
 
-
-
 enum CaseChipFilter { all, active, closed }
 enum CaseSort { startMostRecent, startOldest }
 
@@ -25,10 +23,8 @@ class CasesScreen extends StatefulWidget {
 }
 
 class _CasesScreenState extends State<CasesScreen> {
-  // Top chip row (ONLY these 3)
   CaseChipFilter _chip = CaseChipFilter.all;
 
-  // Bottom-sheet advanced filters (still includes high/low risk)
   CaseSort _sort = CaseSort.startMostRecent;
   String _statusFilter = 'all'; // all / active / closed
   String _riskFilter = 'all'; // all / low / high
@@ -52,7 +48,6 @@ class _CasesScreenState extends State<CasesScreen> {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Handle
                     Container(
                       width: 46,
                       height: 5,
@@ -185,7 +180,6 @@ class _CasesScreenState extends State<CasesScreen> {
                             _statusFilter = tmpStatus;
                             _riskFilter = tmpRisk;
 
-                            // keep top chips in sync ONLY for status
                             if (_statusFilter == 'active') {
                               _chip = CaseChipFilter.active;
                             } else if (_statusFilter == 'closed') {
@@ -281,7 +275,6 @@ class _CasesScreenState extends State<CasesScreen> {
 
                 return Column(
                   children: [
-                    // ===== Top Row =====
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
                       child: Row(
@@ -335,7 +328,6 @@ class _CasesScreenState extends State<CasesScreen> {
                       ),
                     ),
 
-                    // ===== Title =====
                     Padding(
                       padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
                       child: Align(
@@ -366,7 +358,6 @@ class _CasesScreenState extends State<CasesScreen> {
                       ),
                     ),
 
-                    // ===== White pills: All/Active/Closed + Filter =====
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                       child: Row(
@@ -423,7 +414,6 @@ class _CasesScreenState extends State<CasesScreen> {
                       ),
                     ),
 
-                    // ===== Cases List =====
                     Expanded(
                       child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                         stream: casesQuery.snapshots(),
@@ -456,11 +446,9 @@ class _CasesScreenState extends State<CasesScreen> {
 
                           final caseNumberById = _computeCaseNumbers(docs);
 
-                          // Apply filters
                           List<QueryDocumentSnapshot<Map<String, dynamic>>> list =
                           [...docs];
 
-                          // status
                           if (_statusFilter != 'all') {
                             final wantClosed = _statusFilter == 'closed';
                             list = list.where((d) {
@@ -472,7 +460,6 @@ class _CasesScreenState extends State<CasesScreen> {
                             }).toList();
                           }
 
-                          // risk
                           if (_riskFilter != 'all') {
                             final wantHigh = _riskFilter == 'high';
                             list = list.where((d) {
@@ -482,7 +469,6 @@ class _CasesScreenState extends State<CasesScreen> {
                             }).toList();
                           }
 
-                          // sort by start date
                           list.sort((a, b) {
                             final aDt = _bestStartDate(a.data());
                             final bDt = _bestStartDate(b.data());
@@ -508,6 +494,9 @@ class _CasesScreenState extends State<CasesScreen> {
 
                               final caseNo = caseNumberById[caseId] ?? 0;
 
+                              // ✅ NEW: pick the displayed name
+                              final caseTitle = _caseDisplayName(data, caseNo);
+
                               final startDate = _formatDate(
                                 data['startDate'] ??
                                     data['surgeryDate'] ??
@@ -524,6 +513,7 @@ class _CasesScreenState extends State<CasesScreen> {
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 14),
                                 child: _WoundCleanCard(
+                                  caseTitle: caseTitle,
                                   caseNo: caseNo,
                                   dayLabel: _computeDayLabel(
                                     data['startDate'] ??
@@ -603,7 +593,6 @@ class _BlueGlassyBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // base
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -617,25 +606,27 @@ class _BlueGlassyBackground extends StatelessWidget {
             ),
           ),
         ),
-
-        // blobs
         Positioned(
           top: -170,
           left: -150,
-          child: _Blob(size: 520, color: AppColors.secondaryColor.withOpacity(0.22)),
+          child: _Blob(
+            size: 520,
+            color: AppColors.secondaryColor.withOpacity(0.22),
+          ),
         ),
         Positioned(
           top: 120,
           right: -180,
-          child: _Blob(size: 560, color: AppColors.primaryColor.withOpacity(0.10)),
+          child: _Blob(
+            size: 560,
+            color: AppColors.primaryColor.withOpacity(0.10),
+          ),
         ),
         Positioned(
           bottom: -220,
           left: -160,
           child: _Blob(size: 600, color: Colors.white.withOpacity(0.60)),
         ),
-
-        // blur glass
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
           child: Container(color: Colors.transparent),
@@ -660,7 +651,7 @@ class _Blob extends StatelessWidget {
   }
 }
 
-/* ===================== Header pills (consistent) ===================== */
+/* ===================== Header pills ===================== */
 
 class _AvatarButton extends StatelessWidget {
   const _AvatarButton({required this.letter});
@@ -847,10 +838,11 @@ class _WhitePill extends StatelessWidget {
   }
 }
 
-/* ===================== Card: clean white + modern ===================== */
+/* ===================== Card ===================== */
 
 class _WoundCleanCard extends StatelessWidget {
   const _WoundCleanCard({
+    required this.caseTitle,
     required this.caseNo,
     required this.dayLabel,
     required this.startDate,
@@ -863,6 +855,7 @@ class _WoundCleanCard extends StatelessWidget {
     this.onStartDaily,
   });
 
+  final String caseTitle;
   final int caseNo;
   final String dayLabel;
   final String startDate;
@@ -902,7 +895,6 @@ class _WoundCleanCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // header
             Row(
               children: [
                 _CardIconBadge(
@@ -914,8 +906,11 @@ class _WoundCleanCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ✅ name you chose
                       Text(
-                        "Wound $caseNo",
+                        caseTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.dmSans(
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
@@ -923,10 +918,11 @@ class _WoundCleanCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
+                      // ✅ keep number + day label as info (small)
                       Text(
-                        dayLabel,
+                        "Wound $caseNo • $dayLabel",
                         style: GoogleFonts.inter(
-                          fontSize: 12.5,
+                          fontSize: 12.2,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textMuted,
                         ),
@@ -942,7 +938,6 @@ class _WoundCleanCard extends StatelessWidget {
             Divider(height: 1, color: AppColors.dividerColor.withOpacity(0.9)),
             const SizedBox(height: 12),
 
-            // dates row
             Row(
               children: [
                 Expanded(
@@ -963,7 +958,6 @@ class _WoundCleanCard extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // daily check sub-card (white, clean)
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
@@ -1014,7 +1008,6 @@ class _WoundCleanCard extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // actions (blue buttons)
             Row(
               children: [
                 Expanded(
@@ -1327,7 +1320,8 @@ class _RadioRow extends StatelessWidget {
                 child: Container(
                   width: 8,
                   height: 8,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: c),
+                  decoration:
+                  BoxDecoration(shape: BoxShape.circle, color: c),
                 ),
               )
                   : null,
@@ -1432,7 +1426,7 @@ class _EmptyState extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                "Create your first case to start monitoring healing progress.",
+                "Create your first case to start monitoring your wound.",
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -1491,21 +1485,42 @@ class _ErrorState extends StatelessWidget {
 
 /* ===================== Helpers (data) ===================== */
 
+String _caseDisplayName(Map<String, dynamic> data, int caseNo) {
+  final rawName = (data['caseName'] ?? data['title'] ?? '').toString().trim();
+  if (rawName.isNotEmpty) return rawName;
+  return "Wound $caseNo";
+}
+
 Map<String, int> _computeCaseNumbers(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
     ) {
-  // If any doc has caseNo, use it (stable numbering)
-  final hasStored = docs.any((d) {
-    final v = d.data()['caseNo'];
-    return v is int && v > 0;
-  });
+  // ✅ accept both keys: caseNumber OR caseNo
+  bool hasStored = false;
+  for (final d in docs) {
+    final data = d.data();
+    final v1 = data['caseNumber'];
+    final v2 = data['caseNo'];
+    final n1 = (v1 is int) ? v1 : int.tryParse('$v1');
+    final n2 = (v2 is int) ? v2 : int.tryParse('$v2');
+    final n = (n1 ?? n2) ?? 0;
+    if (n > 0) {
+      hasStored = true;
+      break;
+    }
+  }
 
   if (hasStored) {
     final out = <String, int>{};
     for (final d in docs) {
-      final v = d.data()['caseNo'];
-      if (v is int && v > 0) out[d.id] = v;
+      final data = d.data();
+      final v1 = data['caseNumber'];
+      final v2 = data['caseNo'];
+      final n1 = (v1 is int) ? v1 : int.tryParse('$v1');
+      final n2 = (v2 is int) ? v2 : int.tryParse('$v2');
+      final n = (n1 ?? n2) ?? 0;
+      if (n > 0) out[d.id] = n;
     }
+
     if (out.length != docs.length) {
       final computed = _computeCaseNumbersFallback(docs);
       for (final d in docs) {
@@ -1549,7 +1564,6 @@ int _infectionScore(Map<String, dynamic> data) {
 }
 
 String _riskBucket(int score) {
-  // change thresholds anytime
   if (score >= 6) return 'high';
   return 'low';
 }

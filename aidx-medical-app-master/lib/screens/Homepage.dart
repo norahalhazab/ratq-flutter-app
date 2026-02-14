@@ -137,7 +137,8 @@ class _HomepageState extends State<Homepage> {
                     // Ensure a selected case (if any exist)
                     if (docs.isNotEmpty) {
                       final ids = docs.map((d) => d.id).toList();
-                      if (_selectedCaseId == null || !ids.contains(_selectedCaseId)) {
+                      if (_selectedCaseId == null ||
+                          !ids.contains(_selectedCaseId)) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (!mounted) return;
                           setState(() => _selectedCaseId = ids.first);
@@ -167,20 +168,26 @@ class _HomepageState extends State<Homepage> {
                         selectedData['surgeryDate']);
 
                     final daysSince = _daysSince(startValue);
-                    final status = ((selectedData?['status'] as String?) ?? 'active').toLowerCase();
+                    final status =
+                    ((selectedData?['status'] as String?) ?? 'active')
+                        .toLowerCase();
                     final isClosed = status == 'closed';
 
-                    final score = selectedData == null ? null : _infectionScore(selectedData);
+                    final score =
+                    selectedData == null ? null : _infectionScore(selectedData);
                     final assessment = _assessmentFromScore(score);
 
                     // ✅ Watch values
                     final isConnected = _watch.isConnected;
                     final hrText = isConnected ? "${_watch.heartRate}" : "---";
-                    final tempText = isConnected ? _watch.temperature.toStringAsFixed(1) : "---";
-                    final bpText = isConnected ? _watch.bloodPressure : "--- / ---";
+                    final tempText =
+                    isConnected ? _watch.temperature.toStringAsFixed(1) : "---";
+                    final bpText =
+                    isConnected ? _watch.bloodPressure : "--- / ---";
 
                     // ✅ Infection score metric card (replacing Oxygen)
-                    final infectionMetricText = (score == null) ? "---" : score.toString();
+                    final infectionMetricText =
+                    (score == null) ? "---" : score.toString();
 
                     return CustomScrollView(
                       slivers: [
@@ -190,7 +197,9 @@ class _HomepageState extends State<Homepage> {
                             child: Row(
                               children: [
                                 _AvatarButton(
-                                  letter: (userName.isNotEmpty ? userName.characters.first : "U")
+                                  letter: (userName.isNotEmpty
+                                      ? userName.characters.first
+                                      : "U")
                                       .toUpperCase(),
                                 ),
                                 const SizedBox(width: 10),
@@ -305,7 +314,9 @@ class _HomepageState extends State<Homepage> {
                             padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
                             child: _CaseSummaryCard(
                               enabled: selectedDoc != null,
-                              title: selectedDoc == null ? "Select a case" : _caseTitleForDoc(selectedDoc, docs),
+                              title: selectedDoc == null
+                                  ? "Select a case"
+                                  : _caseTitleForDoc(selectedDoc, docs),
                               dayLabel: selectedDoc == null
                                   ? "Day --"
                                   : "Day ${daysSince == null ? "--" : daysSince.toString()}",
@@ -314,7 +325,8 @@ class _HomepageState extends State<Homepage> {
                               assessment: assessment,
                               startDate: _formatDate(startValue),
                               lastUpdated: _formatDate(
-                                selectedData?['lastUpdated'] ?? selectedData?['createdAt'],
+                                selectedData?['lastUpdated'] ??
+                                    selectedData?['createdAt'],
                               ),
                               whqCountBuilder: selectedDoc == null
                                   ? null
@@ -339,7 +351,8 @@ class _HomepageState extends State<Homepage> {
                                         label: "Heart\nRate",
                                         value: hrText,
                                         unit: "bpm",
-                                        badgeText: isConnected ? "Connected" : "Not synced",
+                                        badgeText:
+                                        isConnected ? "Connected" : "Not synced",
                                         icon: Icons.favorite_border,
                                         tint: AppColors.errorColor,
                                       ),
@@ -350,7 +363,8 @@ class _HomepageState extends State<Homepage> {
                                         label: "Blood\nPressure",
                                         value: bpText,
                                         unit: "mmHg",
-                                        badgeText: isConnected ? "Connected" : "Not synced",
+                                        badgeText:
+                                        isConnected ? "Connected" : "Not synced",
                                         icon: Icons.water_drop_outlined,
                                         tint: AppColors.secondaryColor,
                                       ),
@@ -365,7 +379,8 @@ class _HomepageState extends State<Homepage> {
                                         label: "Temperature",
                                         value: tempText,
                                         unit: "°C",
-                                        badgeText: isConnected ? "Connected" : "Not synced",
+                                        badgeText:
+                                        isConnected ? "Connected" : "Not synced",
                                         icon: Icons.thermostat_outlined,
                                         tint: AppColors.warningColor,
                                       ),
@@ -378,7 +393,9 @@ class _HomepageState extends State<Homepage> {
                                         label: "Infection\nScore",
                                         value: infectionMetricText,
                                         unit: "",
-                                        badgeText: selectedDoc == null ? "No case" : assessment,
+                                        badgeText: selectedDoc == null
+                                            ? "No case"
+                                            : assessment,
                                         icon: Icons.health_and_safety_outlined,
                                         tint: AppColors.primaryColor,
                                       ),
@@ -398,7 +415,9 @@ class _HomepageState extends State<Homepage> {
                                       _MiniChartSparkline(
                                         title: "Heart rate trend",
                                         hint: "last ${_historyMax} points",
-                                        values: _hrHistory.map((e) => e.toDouble()).toList(),
+                                        values: _hrHistory
+                                            .map((e) => e.toDouble())
+                                            .toList(),
                                         emptyHint: "No data yet",
                                       ),
                                       const SizedBox(height: 12),
@@ -444,7 +463,8 @@ class _HomepageState extends State<Homepage> {
                                       _InsightRow(
                                         icon: Icons.auto_graph_rounded,
                                         title: "Forecast (later)",
-                                        value: "basic trend-based early warning signal",
+                                        value:
+                                        "basic trend-based early warning signal",
                                       ),
                                       const SizedBox(height: 14),
                                       _WhiteHintPill(
@@ -525,7 +545,8 @@ class _HomepageState extends State<Homepage> {
                     itemBuilder: (context, i) {
                       final d = cases[i];
                       final data = d.data();
-                      final title = _caseTitleFromData(data, fallback: "Wound");
+                      final title =
+                      _caseTitleFromData(data, fallback: "Untitled wound");
                       final status =
                       ((data['status'] as String?) ?? 'active').toLowerCase();
                       final isClosed = status == 'closed';
@@ -615,18 +636,14 @@ class _HomepageState extends State<Homepage> {
     );
   }
 
+  // ✅ UPDATED: always return the real title (no "Wound 1/2" numbering)
   static String _caseTitleForDoc(
       QueryDocumentSnapshot<Map<String, dynamic>>? selected,
       List<QueryDocumentSnapshot<Map<String, dynamic>>> all,
       ) {
     if (selected == null) return "Select case";
     final data = selected.data();
-
-    final caseNo = data['caseNo'];
-    if (caseNo is int && caseNo > 0) return "Wound $caseNo";
-
-    final title = _caseTitleFromData(data, fallback: "Wound");
-    return title;
+    return _caseTitleFromData(data, fallback: "Untitled wound");
   }
 
   static String _caseTitleFromData(
@@ -639,7 +656,8 @@ class _HomepageState extends State<Homepage> {
     return fallback;
   }
 
-  static String _getUserName(Map<String, dynamic>? data, {required String fallback}) {
+  static String _getUserName(Map<String, dynamic>? data,
+      {required String fallback}) {
     if (data == null) return fallback;
     final v = data['name'] ?? data['username'] ?? data['displayName'];
     final s = (v is String) ? v.trim() : '';
@@ -886,7 +904,8 @@ class _CasePickerPill extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryColor),
+              const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.primaryColor),
             ],
           ),
         ),
@@ -1346,7 +1365,8 @@ class _MiniChartSparkline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasData = values.where((v) => v != 0).isNotEmpty && values.length >= 3;
+    final hasData =
+        values.where((v) => v != 0).isNotEmpty && values.length >= 3;
 
     return Container(
       decoration: BoxDecoration(
@@ -1360,7 +1380,8 @@ class _MiniChartSparkline extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.show_chart_rounded, color: AppColors.primaryColor, size: 18),
+              const Icon(Icons.show_chart_rounded,
+                  color: AppColors.primaryColor, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -1448,7 +1469,8 @@ class _MiniChartDualSparkline extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.monitor_heart_outlined, color: AppColors.primaryColor, size: 18),
+              const Icon(Icons.monitor_heart_outlined,
+                  color: AppColors.primaryColor, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -1673,7 +1695,8 @@ class _WhiteHintPill extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppColors.primaryColor),
+          const Icon(Icons.lightbulb_outline_rounded,
+              size: 18, color: AppColors.primaryColor),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

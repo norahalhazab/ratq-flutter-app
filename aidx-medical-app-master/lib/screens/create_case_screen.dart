@@ -18,11 +18,20 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
   DateTime? _surgeryDate;
   bool _loading = false;
 
+  // ✅ NEW: Case name controller
+  final TextEditingController _caseNameCtrl = TextEditingController();
+
   // Brand
   static const Color primary = Color(0xFF3B7691);
   static const Color glassBlue = Color(0xFF63A2BF);
   static const Color titleColor = Color(0xFF0F172A);
   static const Color bodyMuted = Color(0xFF64748B);
+
+  @override
+  void dispose() {
+    _caseNameCtrl.dispose();
+    super.dispose();
+  }
 
   void _toast(String msg) {
     if (!mounted) return;
@@ -72,7 +81,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
     if (picked != null) setState(() => _surgeryDate = picked);
   }
 
-  // ✅ NEW: Get next case number = max(caseNumber) + 1
+  // ✅ Get next case number = max(caseNumber) + 1
   Future<int> _getNextCaseNumber(String uid) async {
     final snap = await FirebaseFirestore.instance
         .collection('users')
@@ -93,6 +102,8 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
   }
 
   Future<void> _createCase() async {
+    final name = _caseNameCtrl.text.trim();
+
     if (_surgeryDate == null) {
       _toast("Please select the surgery date");
       return;
@@ -107,17 +118,28 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
     setState(() => _loading = true);
 
     try {
-      // ✅ compute next number
       final nextNo = await _getNextCaseNumber(user.uid);
 
-      // ✅ create case with caseNumber saved
+      // ✅ Final saved name:
+      // - If user typed a name => use it
+      // - Otherwise default to "Wound <number>"
+      final finalName = name.isNotEmpty ? name : "Wound $nextNo";
+
       final docRef = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('cases')
           .add({
-        'caseNumber': nextNo, // ✅ IMPORTANT
-        'title': 'Case $nextNo', // ✅ optional but recommended
+        // ✅ store BOTH keys for safety (your other file had "caseNo" sometimes)
+        'caseNumber': nextNo,
+        'caseNo': nextNo,
+
+        // ✅ NEW: case name field
+        'caseName': finalName,
+
+        // keep title for backward compatibility
+        'title': finalName,
+
         'status': 'active',
         'infectionScore': 0,
         'surgeryDate': Timestamp.fromDate(_surgeryDate!),
@@ -211,18 +233,48 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
                   const SizedBox(height: 16),
 
+                  // ✅ NEW: Case Name
                   Padding(
                     padding: const EdgeInsets.only(left: 6, bottom: 8),
                     child: Text(
-                      "Surgery date",
+                      "Wound case name",
                       style: GoogleFonts.inter(
-                        fontSize: 13,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: titleColor.withOpacity(0.85),
                       ),
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6, bottom: 12),
+                    child: Text(
+                      "Give this wound case a name (ex: \"Left knee\").",
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: bodyMuted,
+                      ),
+                    ),
+                  ),
+                  _GlassTextField(
+                    controller: _caseNameCtrl,
+                    hintText: "Type a Wound case name (optional)",
+                  ),
 
+                  const SizedBox(height: 18),
+
+                  // Surgery date
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6, bottom: 8),
+                    child: Text(
+                      "Surgery date",
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: titleColor.withOpacity(0.85),
+                      ),
+                    ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.only(left: 6, bottom: 12),
                     child: Text(
@@ -265,7 +317,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
                   const SizedBox(height: 18),
 
-                  // ✅ FAQ
                   const _FaqGlassCard(),
 
                   const SizedBox(height: 18),
@@ -287,7 +338,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                         ),
                       ),
                       child: Text(
-                        "Create Case",
+                        "Create Wound Case",
                         style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
@@ -437,6 +488,66 @@ class _GlassCard extends StatelessWidget {
                 ),
               child,
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassTextField extends StatelessWidget {
+  const _GlassTextField({
+    required this.controller,
+    required this.hintText,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withOpacity(0.70)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.75),
+                Colors.white.withOpacity(0.55),
+              ],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 12,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: controller,
+            textInputAction: TextInputAction.done,
+            style: GoogleFonts.inter(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF0F172A),
+            ),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              hintText: hintText,
+              hintStyle: GoogleFonts.inter(
+                fontSize: 13.2,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF94A3B8),
+              ),
+            ),
           ),
         ),
       ),
