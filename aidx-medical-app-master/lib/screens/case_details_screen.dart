@@ -20,6 +20,107 @@ class CaseDetailsScreen extends StatelessWidget {
   final String caseId;
   final int? caseNumber;
 
+  Future<void> _editCaseName(
+      BuildContext context,
+      DocumentReference<Map<String, dynamic>> caseRef,
+      String currentName,
+      int fallbackNo,
+      ) async {
+    final ctrl = TextEditingController(text: currentName);
+
+    final newName = await showDialog<String?>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      "Edit case name",
+                      style: GoogleFonts.dmSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    hintText: "Example: Left knee",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final v = ctrl.text.trim();
+                      Navigator.pop(ctx, v.isEmpty ? null : v);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      "Save",
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "If left empty, it will fallback to Wound $fallbackNo.",
+                  style: GoogleFonts.inter(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    ctrl.dispose();
+
+    // user cancelled
+    if (newName == null) return;
+
+    await caseRef.update({
+      'caseName': newName,
+      'title': newName,
+      'lastUpdated': FieldValue.serverTimestamp(),
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -59,13 +160,13 @@ class CaseDetailsScreen extends StatelessWidget {
               stream: caseRef.snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return _ErrorState(message: "Something went wrong");
+                  return const _ErrorState(message: "Something went wrong");
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (!snapshot.hasData || !snapshot.data!.exists) {
-                  return _ErrorState(message: "Case not found");
+                  return const _ErrorState(message: "Case not found");
                 }
 
                 final data = snapshot.data!.data() ?? {};
@@ -73,14 +174,18 @@ class CaseDetailsScreen extends StatelessWidget {
                 ((data['status'] as String?) ?? 'active').toLowerCase();
                 final isClosed = status == 'closed';
 
-                // Title
-                final displayTitle = caseNumber != null
-                    ? "Wound $caseNumber"
-                    : ((data['title'] as String?)?.trim().isNotEmpty == true
-                    ? (data['title'] as String)
-                    : "Wound case");
+                final int fallbackNo = caseNumber ??
+                    _asInt(data['caseNumber']) ??
+                    _asInt(data['caseNo']) ??
+                    0;
 
-                // Dates
+                // ✅ display name priority: caseName -> title -> fallback Wound #
+                final rawName =
+                (data['caseName'] ?? data['title'] ?? '').toString().trim();
+                final displayTitle = rawName.isNotEmpty
+                    ? rawName
+                    : (fallbackNo > 0 ? "Wound $fallbackNo" : "Wound case");
+
                 final startValue =
                     data['createdAt'] ?? data['startDate'] ?? data['surgeryDate'];
                 final startDateText = _formatDateTime(startValue);
@@ -88,7 +193,6 @@ class CaseDetailsScreen extends StatelessWidget {
                 final lastValue = data['lastUpdated'] ?? data['createdAt'];
                 final lastUpdatedText = _formatDateTime(lastValue);
 
-                // Score
                 final scoreRaw = data['infectionScore'];
                 final int? score =
                 scoreRaw is int ? scoreRaw : int.tryParse('$scoreRaw');
@@ -104,7 +208,6 @@ class CaseDetailsScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Top bar
                           Row(
                             children: [
                               _WhitePillButton(
@@ -137,7 +240,7 @@ class CaseDetailsScreen extends StatelessWidget {
 
                           const SizedBox(height: 14),
 
-                          // Title row (folder bubble + title)
+                          // ✅ Title + Edit button
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
@@ -160,6 +263,20 @@ class CaseDetailsScreen extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 10),
+                              _WhitePillButton(
+                                onTap: () => _editCaseName(
+                                  context,
+                                  caseRef,
+                                  displayTitle,
+                                  (fallbackNo == 0 ? 1 : fallbackNo),
+                                ),
+                                child: const Icon(
+                                  Icons.edit_outlined,
+                                  size: 18,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
                             ],
                           ),
 
@@ -177,7 +294,6 @@ class CaseDetailsScreen extends StatelessWidget {
 
                           const SizedBox(height: 16),
 
-                          // Main glass card (blue-glass like cases list)
                           _GlassyCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +326,6 @@ class CaseDetailsScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 12),
 
-                                // dates
                                 Row(
                                   children: [
                                     Expanded(
@@ -231,10 +346,9 @@ class CaseDetailsScreen extends StatelessWidget {
 
                                 const SizedBox(height: 14),
 
-                                // Infection score row
                                 Container(
-                                  padding:
-                                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 14),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(22),
                                     color: AppColors.surfaceColor.withOpacity(0.92),
@@ -248,7 +362,8 @@ class CaseDetailsScreen extends StatelessWidget {
                                     children: [
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               "Infection score",
@@ -273,7 +388,8 @@ class CaseDetailsScreen extends StatelessWidget {
                                         width: 62,
                                         height: 62,
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(22),
+                                          borderRadius:
+                                          BorderRadius.circular(22),
                                           gradient: isHighRisk
                                               ? AppColors.dangerGradient
                                               : AppColors.primaryGradient,
@@ -306,7 +422,6 @@ class CaseDetailsScreen extends StatelessWidget {
 
                                 const SizedBox(height: 14),
 
-                                // Daily check button (like cases screen primary arrow vibe)
                                 Row(
                                   children: [
                                     Expanded(
@@ -333,14 +448,12 @@ class CaseDetailsScreen extends StatelessWidget {
                                 ),
 
                                 const SizedBox(height: 10),
-
                               ],
                             ),
                           ),
 
                           const SizedBox(height: 14),
 
-                          // optional extra section placeholder (keeps style consistent)
                           _FrostedSection(
                             title: "Tips",
                             child: Text(
@@ -357,7 +470,6 @@ class CaseDetailsScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // Bottom “Close case” bar — red glass liquid
                     Align(
                       alignment: Alignment.bottomCenter,
                       child: _BottomDangerBar(
@@ -381,6 +493,12 @@ class CaseDetailsScreen extends StatelessWidget {
   }
 }
 
+int? _asInt(dynamic v) {
+  if (v == null) return null;
+  if (v is int) return v;
+  return int.tryParse('$v');
+}
+
 /* ===================== Background: blue glassy ===================== */
 
 class _BlueGlassyBackground extends StatelessWidget {
@@ -390,7 +508,6 @@ class _BlueGlassyBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // base
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -404,8 +521,6 @@ class _BlueGlassyBackground extends StatelessWidget {
             ),
           ),
         ),
-
-        // blobs
         Positioned(
           top: -170,
           left: -150,
@@ -427,8 +542,6 @@ class _BlueGlassyBackground extends StatelessWidget {
           left: -160,
           child: _Blob(size: 600, color: Colors.white.withOpacity(0.60)),
         ),
-
-        // blur glass
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
           child: Container(color: Colors.transparent),
@@ -804,7 +917,7 @@ class _PrimaryActionButton extends StatelessWidget {
   }
 }
 
-/* ===================== Bottom red “liquid glass” bar ===================== */
+/* ===================== Bottom red bar ===================== */
 
 class _BottomDangerBar extends StatelessWidget {
   const _BottomDangerBar({
@@ -842,11 +955,7 @@ class _BottomDangerBar extends StatelessWidget {
               child: Opacity(
                 opacity: disabled ? 0.45 : 1,
                 child: InkWell(
-                  onTap: disabled
-                      ? null
-                      : () async {
-                    await onClose();
-                  },
+                  onTap: disabled ? null : () async => onClose(),
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
                     height: 48,
@@ -869,54 +978,23 @@ class _BottomDangerBar extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Stack(
-                      children: [
-                        // “liquid shine”
-                        Positioned(
-                          left: -30,
-                          top: -20,
-                          child: Container(
-                            width: 140,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(999),
-                              color: Colors.white.withOpacity(0.18),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.delete_outline,
+                              color: Colors.white, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            disabled ? "Case already closed" : "Close wound case",
+                            style: GoogleFonts.inter(
+                              fontSize: 13.2,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
                             ),
                           ),
-                        ),
-                        Positioned(
-                          right: -40,
-                          bottom: -30,
-                          child: Container(
-                            width: 160,
-                            height: 90,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(999),
-                              color: Colors.black.withOpacity(0.06),
-                            ),
-                          ),
-                        ),
-
-                        // content
-                        Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.delete_outline,
-                                  color: Colors.white, size: 20),
-                              const SizedBox(width: 10),
-                              Text(
-                                disabled ? "Case already closed" : "Close wound case",
-                                style: GoogleFonts.inter(
-                                  fontSize: 13.2,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -929,7 +1007,7 @@ class _BottomDangerBar extends StatelessWidget {
   }
 }
 
-/* ===================== Empty / Error ===================== */
+/* ===================== Error ===================== */
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message});
