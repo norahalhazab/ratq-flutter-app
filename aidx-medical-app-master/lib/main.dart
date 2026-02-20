@@ -4,20 +4,16 @@ import 'package:provider/provider.dart';
 import 'package:aidx/services/auth_service.dart';
 import 'package:aidx/services/firebase_service.dart';
 import 'package:aidx/services/database_init.dart';
-import 'package:aidx/providers/health_provider.dart';
 import 'package:aidx/services/notification_service.dart';
 import 'package:aidx/screens/splash_screen.dart';
 import 'package:aidx/utils/theme.dart';
 import 'package:flutter/services.dart';
 import 'package:aidx/utils/constants.dart';
 import 'package:aidx/screens/auth/login_screen.dart';
-import 'package:aidx/services/social_media_service.dart';
 import 'package:aidx/screens/Homepage.dart';
-import 'package:aidx/providers/community_provider.dart';
 import 'package:aidx/screens/cases_screen.dart';
 import 'package:aidx/services/background_service.dart';
 import 'package:aidx/services/app_state_service.dart';
-import 'package:aidx/services/data_persistence_service.dart';
 import 'package:aidx/screens/smart_watch_simulator_screen.dart';
 import 'dart:async' show unawaited;
 
@@ -267,14 +263,11 @@ class MyApp extends StatelessWidget {
 
         final prefs = snapshot.data!;
         final appStateService = AppStateService(prefs);
-        final dataPersistenceService = DataPersistenceService();
 
         return MultiProvider(
           providers: [
             ChangeNotifierProvider<AuthService>.value(value: authService),
             ChangeNotifierProvider<FirebaseService>.value(value: firebaseService),
-            ChangeNotifierProvider<HealthProvider>(create: (_) => HealthProvider()),
-            ChangeNotifierProvider<CommunityProvider>(create: (_) => CommunityProvider()),
             ChangeNotifierProvider<AndroidWearableService>(
               create: (_) {
                 final svc = AndroidWearableService();
@@ -286,8 +279,6 @@ class MyApp extends StatelessWidget {
             ),
             Provider<DatabaseService>(create: (_) => DatabaseService()),
             ChangeNotifierProvider<AppStateService>.value(value: appStateService),
-            Provider<DataPersistenceService>.value(value: dataPersistenceService),
-            Provider<SocialMediaService>(create: (_) => SocialMediaService()),
 
           ],
             child: MaterialApp(
