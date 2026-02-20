@@ -10,7 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../utils/app_colors.dart';
 import '../widgets/bottom_nav.dart';
 import 'create_case_screen.dart';
-import 'smart_watch_simulator_service.dart';
+import '../services/smart_watch_simulator_service.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -414,7 +414,7 @@ class _HomepageState extends State<Homepage> {
                                     children: [
                                       _MiniChartSparkline(
                                         title: "Heart rate trend",
-                                        hint: "last ${_historyMax} points",
+                                        hint: "last $_historyMax points",
                                         values: _hrHistory
                                             .map((e) => e.toDouble())
                                             .toList(),
@@ -423,14 +423,14 @@ class _HomepageState extends State<Homepage> {
                                       const SizedBox(height: 12),
                                       _MiniChartSparkline(
                                         title: "Temperature trend",
-                                        hint: "last ${_historyMax} points",
+                                        hint: "last $_historyMax points",
                                         values: _tempHistory,
                                         emptyHint: "No data yet",
                                       ),
                                       const SizedBox(height: 12),
                                       _MiniChartDualSparkline(
                                         title: "Blood pressure trend",
-                                        hint: "SYS / DIA • last ${_historyMax} points",
+                                        hint: "SYS / DIA • last $_historyMax points",
                                         valuesA: _bpSysHistory,
                                         valuesB: _bpDiaHistory,
                                         emptyHint: "No data yet",

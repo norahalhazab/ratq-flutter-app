@@ -7,13 +7,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-import '../widgets/bottom_nav.dart';
+
 
 class PersonalInformationScreen extends StatefulWidget {
   const PersonalInformationScreen({super.key});
 
   @override
-  State<PersonalInformationScreen> createState() => _PersonalInformationScreenState();
+  State<PersonalInformationScreen> createState() =>
+      _PersonalInformationScreenState();
 }
 
 class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
@@ -36,6 +37,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   // fields
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   DateTime? _dob;
 
@@ -59,6 +61,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -72,6 +75,9 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         setState(() => _loading = false);
         return;
       }
+
+      // ✅ auto-fill email from FirebaseAuth
+      _emailController.text = user.email ?? '';
 
       // 1) Start empty
       _firstNameController.text = '';
@@ -96,6 +102,12 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         final lastName = (data['lastName'] ?? '').toString().trim();
         final phone = (data['phone'] ?? '').toString().trim();
         final photo = (data['photo'] ?? '').toString().trim();
+
+        // ✅ optional fallback: only if auth email is empty
+        final email = (data['email'] ?? '').toString().trim();
+        if (_emailController.text.isEmpty && email.isNotEmpty) {
+          _emailController.text = email;
+        }
 
         if (firstName.isNotEmpty) _firstNameController.text = firstName;
         _lastNameController.text = lastName;
@@ -126,7 +138,9 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
       if (v is Map) {
         final seconds = v['seconds'];
-        if (seconds is int) return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+        if (seconds is int) {
+          return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+        }
       }
     } catch (_) {}
     return null;
@@ -152,8 +166,12 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       final payload = <String, dynamic>{
         'firstName': _firstNameController.text.trim(),
         'lastName': _lastNameController.text.trim(),
+
+        // ✅ save email too (copy for display)
+        'email': user.email ?? _emailController.text.trim(),
+
         'phone': _phoneController.text.trim(),
-        // store as Timestamp (أفضل من string)
+        // store as Timestamp
         'dob': _dob == null ? null : Timestamp.fromDate(_dob!),
         'photo': _profileImageUrl,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -174,11 +192,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         const SnackBar(content: Text('Saved ✅')),
       );
 
-      // ✅ reload to make sure the UI reflects latest saved values
       await Future.delayed(const Duration(milliseconds: 600));
 
       if (!mounted) return;
-      Navigator.pop(context, true); // optional: return "true" to refresh previous page
+      Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -193,7 +210,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   Future<String?> _uploadProfileImage(String userId) async {
     if (_pickedImage == null) return null;
     try {
-      final ref = FirebaseStorage.instance.ref().child('profile_images').child('$userId.jpg');
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child('$userId.jpg');
       await ref.putFile(_pickedImage!);
       return await ref.getDownloadURL();
     } catch (e) {
@@ -204,7 +224,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final XFile? file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final XFile? file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (file != null) {
       setState(() => _pickedImage = File(file.path));
     }
@@ -244,19 +267,15 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
           onPressed: () => Navigator.pop(context),
           child: Text(
             'Cancel',
-            style: GoogleFonts.inter(color: primary, fontWeight: FontWeight.w600),
+            style: GoogleFonts.inter(
+              color: primary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         leadingWidth: 86,
         centerTitle: true,
-        title: Text(
-          'Personal information',
-          style: GoogleFonts.inter(
-            color: const Color(0xFF0F172A),
-            fontSize: 15.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: const SizedBox.shrink(),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -264,17 +283,29 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
               onPressed: (_loading || _saving) ? null : _save,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22),
+                ),
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
               child: _saving
                   ? const SizedBox(
                 height: 16,
                 width: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
-                  : Text('Save', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white)),
+                  : Text(
+                'Save',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],
@@ -286,7 +317,8 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
           onRefresh: _loadProfile,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 110),
+            // ✅ FIXED: no nav bar, so no need for 110 bottom padding
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
             child: Form(
               key: _formKey,
               child: Column(
@@ -294,10 +326,11 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.person_outline, color: Color(0xFF64748B)),
+                      const Icon(Icons.person_outline,
+                          color: Color(0xFF64748B)),
                       const SizedBox(width: 10),
                       Text(
-                        'User profile',
+                        'Profile',
                         style: GoogleFonts.dmSans(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -307,7 +340,6 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -324,26 +356,36 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 44,
-                                backgroundColor: const Color(0xFFE2E8F0),
+                                backgroundColor:
+                                const Color(0xFFE2E8F0),
                                 backgroundImage: _pickedImage != null
                                     ? FileImage(_pickedImage!)
-                                    : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                                    : (_profileImageUrl != null &&
+                                    _profileImageUrl!.isNotEmpty
                                     ? NetworkImage(_profileImageUrl!)
-                                    : null)
-                                as ImageProvider?,
+                                    : null) as ImageProvider?,
                                 child: (_pickedImage == null &&
-                                    (_profileImageUrl == null || _profileImageUrl!.isEmpty))
-                                    ? const Icon(Icons.person, size: 34, color: Color(0xFF64748B))
+                                    (_profileImageUrl == null ||
+                                        _profileImageUrl!.isEmpty))
+                                    ? const Icon(
+                                  Icons.person,
+                                  size: 34,
+                                  color: Color(0xFF64748B),
+                                )
                                     : null,
                               ),
                               const SizedBox(height: 8),
                               InkWell(
                                 onTap: _pickImage,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.center,
                                   children: [
-                                    const Icon(Icons.photo_camera_outlined,
-                                        size: 16, color: primary),
+                                    const Icon(
+                                      Icons.photo_camera_outlined,
+                                      size: 16,
+                                      color: primary,
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
                                       'Change photo',
@@ -360,29 +402,29 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                           ),
                         ),
                         const SizedBox(height: 18),
-
                         _label('First name'),
                         _field(
                           controller: _firstNameController,
                           hint: '',
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'First name is required';
+                            if (v == null || v.trim().isEmpty) {
+                              return 'First name is required';
+                            }
                             return null;
                           },
                         ),
                         const SizedBox(height: 12),
-
                         _label('Last name'),
                         _field(controller: _lastNameController, hint: ''),
                         const SizedBox(height: 12),
-
                         _label('Date of birth'),
                         InkWell(
                           onTap: _pickDob,
                           borderRadius: BorderRadius.circular(14),
                           child: Container(
                             height: 52,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14),
                             decoration: BoxDecoration(
                               color: fieldBg,
                               borderRadius: BorderRadius.circular(14),
@@ -400,13 +442,38 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                     ),
                                   ),
                                 ),
-                                const Icon(Icons.calendar_month_outlined, color: Color(0xFF64748B)),
+                                const Icon(Icons.calendar_month_outlined,
+                                    color: Color(0xFF64748B)),
                               ],
                             ),
                           ),
                         ),
                         const SizedBox(height: 12),
 
+                        // -------- Email --------
+                        _label('Email'),
+                        Container(
+                          height: 52,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: fieldBg,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: border),
+                          ),
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _emailController.text,
+                            style: GoogleFonts.inter(
+                              fontSize: 14.5,
+                              color: const Color(0xFF0F172A),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // -------- Phone --------
                         _label('Phone number'),
                         _field(
                           controller: _phoneController,
@@ -422,10 +489,8 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: const Padding(
-        padding: EdgeInsets.all(10),
-        child: AppBottomNav(currentIndex: 3),
-      ),
+
+      // ✅ REMOVED bottomNavigationBar entirely
     );
   }
 
@@ -462,7 +527,8 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         hintText: hint,
         filled: true,
         fillColor: fieldBg,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding:
+        const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: border),
