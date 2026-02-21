@@ -5,11 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import '../models/health_data_model.dart';
 
-import '../models/health_habit_model.dart';
-import '../models/sleep_fall_detection_model.dart';
-import '../models/community_support_model.dart';
 import '../utils/constants.dart';
 
 class AppStateService extends ChangeNotifier {

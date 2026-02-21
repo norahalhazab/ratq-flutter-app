@@ -5,7 +5,6 @@ import 'notification_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'sleep_fall_detection_service.dart';
 import 'background_service.dart';
 import 'dart:async';
 import 'telegram_service.dart';
@@ -16,7 +15,6 @@ import 'package:permission_handler/permission_handler.dart';
 
 class SosService {
   final NotificationService _notificationService = NotificationService();
-  final SleepFallDetectionService _fallDetectionService = SleepFallDetectionService();
   final BackgroundService _backgroundService = BackgroundService();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -43,12 +41,6 @@ class SosService {
     await _backgroundService.initialize();
     
     // Automatically enable fall detection when SOS is enabled
-    try {
-      await _fallDetectionService.startFallDetection();
-      debugPrint('✅ Fall detection monitoring started');
-    } catch (e) {
-      debugPrint('Error starting fall detection: $e');
-    }
     
     // Start background service for continuous monitoring
     try {
@@ -68,7 +60,6 @@ class SosService {
     await prefs.setBool('sos_enabled', false);
     
     // Automatically disable fall detection when SOS is disabled
-    await _fallDetectionService.stopMonitoring();
     
     // Stop background service
     await _backgroundService.stopBackgroundService();

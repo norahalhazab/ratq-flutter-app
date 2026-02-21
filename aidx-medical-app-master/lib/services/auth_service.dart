@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:aidx/services/database_init.dart';
-import 'package:aidx/services/premium_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 
@@ -94,7 +93,7 @@ class AuthService with ChangeNotifier {
           debugPrint('✅ User profile created in Firestore');
           
           // Sync subscription status
-          await PremiumService.syncSubscriptionStatus(user.uid);
+
         } catch (e) {
           debugPrint('⚠️ Error creating user profile: $e');
           // Log error but continue execution
@@ -174,7 +173,7 @@ class AuthService with ChangeNotifier {
           debugPrint('✅ User profile created/updated after login');
           
           // Sync subscription status
-          await PremiumService.syncSubscriptionStatus(user.uid);
+
         } catch (e) {
           debugPrint('⚠️ Failed to create/update profile after login: $e');
           // Not critical – continue
@@ -216,7 +215,7 @@ class AuthService with ChangeNotifier {
           debugPrint('✅ User profile created in Firestore');
           
           // Sync subscription status
-          await PremiumService.syncSubscriptionStatus(user.uid);
+
         } catch (e) {
           debugPrint('⚠️ Failed to create user profile in Firestore: $e');
           // Continue even if profile creation fails
@@ -276,7 +275,7 @@ class AuthService with ChangeNotifier {
           'loginMethod': 'apple',
           'isVerified': user.emailVerified,
         });
-        await PremiumService.syncSubscriptionStatus(user.uid);
+
         notifyListeners();
       }
       return user;
