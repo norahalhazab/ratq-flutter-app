@@ -3,7 +3,8 @@ import 'dart:ui'; // Required for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/bottom_nav.dart';
-import '../utils/app_colors.dart'; // Ensure you have this file
+import '../utils/app_colors.dart';
+import 'smart_watch_simulator_screen.dart';
 
 class UploadSuccessScreen extends StatelessWidget {
   const UploadSuccessScreen({super.key});
@@ -142,8 +143,12 @@ class UploadSuccessScreen extends StatelessWidget {
                             label: "Continue to vitals",
                             icon: Icons.arrow_forward_rounded,
                             onTap: () {
-                              // TODO: Navigate to vitals screen
-                              // Navigator.push(context, MaterialPageRoute(builder: (_) => const VitalsScreen()));
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SmartWatchSimulatorScreen(),
+                                ),
+                              );
                             },
                           ),
                         ),

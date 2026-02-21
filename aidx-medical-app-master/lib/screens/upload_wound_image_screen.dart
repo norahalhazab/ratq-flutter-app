@@ -87,34 +87,33 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
       final String downloadUrl = jsonMap['secure_url'];
 
       // -----------------------------------------------------
-      // 2. CALL AI MODEL
+      // 2. CALL AI MODEL (Exudate Only for now)
       // -----------------------------------------------------
-      // Replace with your Hugging Face or Render URL
-      final aiUrl = Uri.parse('https://laura-potato-ratq-ai.hf.space/analyze');
+      // This is your current Space dedicated to Exudate
+      final exudateAiUrl = Uri.parse('https://laura-potato-ratq-ai.hf.space/analyze');
 
-      final aiResponse = await http.post(
-        aiUrl,
+      final exudateResponse = await http.post(
+        exudateAiUrl,
         headers: {"Content-Type": "application/json"},
-        // Use downloadUrl directly if using Hugging Face (16GB RAM)
-        // If using Render Free Tier, you might want to resize it here.
         body: jsonEncode({"imageUrl": downloadUrl}),
       ).timeout(const Duration(seconds: 90));
 
-      int? detectedErythema;
-      String? detectedExudate;
+      // FIXED: Changed detectedExudate to int? because Python returns 0 or 1
+      int? detectedErythema; // Stays null until teammate's server is ready
+      int? detectedExudate;
 
-      if (aiResponse.statusCode == 200) {
-        final aiData = jsonDecode(aiResponse.body);
-        print("AI Success: $aiData");
+      if (exudateResponse.statusCode == 200) {
+        final aiData = jsonDecode(exudateResponse.body);
+        print("Exudate AI Success: $aiData");
 
-        detectedErythema = aiData['erythema'];
+        // Grab the exudate result. It safely ignores erythema.
         detectedExudate = aiData['exudate'];
 
-        if (detectedErythema == null && detectedExudate == null) {
+        if (detectedExudate == null) {
           throw("AI analysis returned empty results.");
         }
       } else {
-        throw("AI Server Error: ${aiResponse.statusCode}");
+        throw("Exudate Server Error: ${exudateResponse.statusCode}");
       }
 
       // -----------------------------------------------------
@@ -133,8 +132,8 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
         "image": {
           "url": downloadUrl,
           "date": FieldValue.serverTimestamp(),
-          "erythema": detectedErythema,
-          "exudate": detectedExudate,
+          "erythema": detectedErythema, // Saves as null for now, which is perfectly safe
+          "exudate": detectedExudate,   // Saves the 0 or 1 from the new server
           "source": source,
         },
         "lastUpdated": FieldValue.serverTimestamp(),
