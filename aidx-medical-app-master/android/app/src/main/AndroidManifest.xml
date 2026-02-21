@@ -114,7 +114,7 @@
         android:name="android.hardware.sensor.gyroscope"
         android:required="true"/>
     <application
-        android:label="aidx"
+        android:label="Ratq"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true"

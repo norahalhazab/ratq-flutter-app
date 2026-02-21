@@ -1,5 +1,6 @@
 // homepage.dart
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -22,11 +23,11 @@ class Homepage extends StatefulWidget {
 class _HomepageState extends State<Homepage> {
   String? _selectedCaseId;
 
-  // ✅ Watch simulator service (values update when user connects from simulator screen)
+  // ✅ Watch simulator service
   final _watch = SmartWatchSimulatorService.instance;
   StreamSubscription<void>? _watchSub;
 
-  // ✅ small history for charts
+  // ✅ small history for charts (local/watch)
   final List<int> _hrHistory = [];
   final List<double> _tempHistory = [];
   final List<double> _bpSysHistory = [];
@@ -43,7 +44,7 @@ class _HomepageState extends State<Homepage> {
       if (mounted) setState(() {});
     });
 
-    // seed initial values (optional)
+    // seed
     _pushVitalsToHistory();
   }
 
@@ -54,15 +55,12 @@ class _HomepageState extends State<Homepage> {
   }
 
   void _pushVitalsToHistory() {
-    // Heart rate
     _hrHistory.add(_watch.heartRate);
     if (_hrHistory.length > _historyMax) _hrHistory.removeAt(0);
 
-    // Temperature
     _tempHistory.add(_watch.temperature);
     if (_tempHistory.length > _historyMax) _tempHistory.removeAt(0);
 
-    // Blood pressure parse "SYS/DIA"
     final parts = _watch.bloodPressure.split('/');
     double sys = 0, dia = 0;
     if (parts.length == 2) {
@@ -134,11 +132,10 @@ class _HomepageState extends State<Homepage> {
                   builder: (context, casesSnap) {
                     final docs = casesSnap.data?.docs ?? [];
 
-                    // Ensure a selected case (if any exist)
+                    // Ensure a selected case
                     if (docs.isNotEmpty) {
                       final ids = docs.map((d) => d.id).toList();
-                      if (_selectedCaseId == null ||
-                          !ids.contains(_selectedCaseId)) {
+                      if (_selectedCaseId == null || !ids.contains(_selectedCaseId)) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (!mounted) return;
                           setState(() => _selectedCaseId = ids.first);
@@ -149,7 +146,6 @@ class _HomepageState extends State<Homepage> {
                     }
 
                     QueryDocumentSnapshot<Map<String, dynamic>>? selectedDoc;
-
                     if (docs.isNotEmpty && _selectedCaseId != null) {
                       final i = docs.indexWhere((d) => d.id == _selectedCaseId);
                       selectedDoc = (i >= 0) ? docs[i] : docs.first;
@@ -168,26 +164,24 @@ class _HomepageState extends State<Homepage> {
                         selectedData['surgeryDate']);
 
                     final daysSince = _daysSince(startValue);
-                    final status =
-                    ((selectedData?['status'] as String?) ?? 'active')
-                        .toLowerCase();
+                    final status = ((selectedData?['status'] as String?) ?? 'active').toLowerCase();
                     final isClosed = status == 'closed';
 
-                    final score =
-                    selectedData == null ? null : _infectionScore(selectedData);
-                    final assessment = _assessmentFromScore(score);
+                    // Infection assessment
+                    final score = selectedData == null ? null : _infectionScore(selectedData);
+                    final isHigh = _isHighInfection(score);
+                    final assessment = _assessmentLabelSimple(score);
+
+                    // ✅ Force colors: green if no sign, red if high sign
+                    final infectionTint = selectedDoc == null
+                        ? AppColors.primaryColor
+                        : (isHigh ? AppColors.errorColor : AppColors.successColor);
 
                     // ✅ Watch values
                     final isConnected = _watch.isConnected;
                     final hrText = isConnected ? "${_watch.heartRate}" : "---";
-                    final tempText =
-                    isConnected ? _watch.temperature.toStringAsFixed(1) : "---";
-                    final bpText =
-                    isConnected ? _watch.bloodPressure : "--- / ---";
-
-                    // ✅ Infection score metric card (replacing Oxygen)
-                    final infectionMetricText =
-                    (score == null) ? "---" : score.toString();
+                    final tempText = isConnected ? _watch.temperature.toStringAsFixed(1) : "---";
+                    final bpText = isConnected ? _watch.bloodPressure : "--- / ---";
 
                     return CustomScrollView(
                       slivers: [
@@ -197,9 +191,7 @@ class _HomepageState extends State<Homepage> {
                             child: Row(
                               children: [
                                 _AvatarButton(
-                                  letter: (userName.isNotEmpty
-                                      ? userName.characters.first
-                                      : "U")
+                                  letter: (userName.isNotEmpty ? userName.characters.first : "U")
                                       .toUpperCase(),
                                 ),
                                 const SizedBox(width: 10),
@@ -229,8 +221,6 @@ class _HomepageState extends State<Homepage> {
                                     ],
                                   ),
                                 ),
-
-                                // ✅ removed "New Wound" button here (as requested)
                               ],
                             ),
                           ),
@@ -283,18 +273,14 @@ class _HomepageState extends State<Homepage> {
                                     title: docs.isEmpty
                                         ? "No cases yet"
                                         : _caseTitleForDoc(selectedDoc, docs),
-                                    subtitle: docs.isEmpty
-                                        ? "Create a case to start"
-                                        : (isClosed ? "Closed" : "Active"),
+                                    subtitle: docs.isEmpty ? "Create a case to start" : (isClosed ? "Closed" : "Active"),
                                     onTap: docs.isEmpty
                                         ? null
                                         : () => _openCasePicker(
                                       context: context,
                                       cases: docs,
                                       selectedId: _selectedCaseId,
-                                      onSelect: (id) => setState(() {
-                                        _selectedCaseId = id;
-                                      }),
+                                      onSelect: (id) => setState(() => _selectedCaseId = id),
                                     ),
                                   ),
                                 ),
@@ -314,19 +300,17 @@ class _HomepageState extends State<Homepage> {
                             padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
                             child: _CaseSummaryCard(
                               enabled: selectedDoc != null,
-                              title: selectedDoc == null
-                                  ? "Select a case"
-                                  : _caseTitleForDoc(selectedDoc, docs),
+                              title: selectedDoc == null ? "Select a case" : _caseTitleForDoc(selectedDoc, docs),
                               dayLabel: selectedDoc == null
                                   ? "Day --"
-                                  : "Day ${daysSince == null ? "--" : daysSince.toString()}",
+                                  : _funDayLabel(daysSince),
                               isClosed: isClosed,
+                              isHigh: isHigh,
                               scoreText: score == null ? "--" : score.toString(),
                               assessment: assessment,
                               startDate: _formatDate(startValue),
                               lastUpdated: _formatDate(
-                                selectedData?['lastUpdated'] ??
-                                    selectedData?['createdAt'],
+                                selectedData?['lastUpdated'] ?? selectedData?['createdAt'],
                               ),
                               whqCountBuilder: selectedDoc == null
                                   ? null
@@ -338,7 +322,7 @@ class _HomepageState extends State<Homepage> {
                           ),
                         ),
 
-                        // Vitals grid + charts
+                        // Vitals grid
                         SliverPadding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
                           sliver: SliverList(
@@ -351,8 +335,7 @@ class _HomepageState extends State<Homepage> {
                                         label: "Heart\nRate",
                                         value: hrText,
                                         unit: "bpm",
-                                        badgeText:
-                                        isConnected ? "Connected" : "Not synced",
+                                        badgeText: isConnected ? "Connected" : "Not synced",
                                         icon: Icons.favorite_border,
                                         tint: AppColors.errorColor,
                                       ),
@@ -363,8 +346,7 @@ class _HomepageState extends State<Homepage> {
                                         label: "Blood\nPressure",
                                         value: bpText,
                                         unit: "mmHg",
-                                        badgeText:
-                                        isConnected ? "Connected" : "Not synced",
+                                        badgeText: isConnected ? "Connected" : "Not synced",
                                         icon: Icons.water_drop_outlined,
                                         tint: AppColors.secondaryColor,
                                       ),
@@ -379,61 +361,75 @@ class _HomepageState extends State<Homepage> {
                                         label: "Temperature",
                                         value: tempText,
                                         unit: "°C",
-                                        badgeText:
-                                        isConnected ? "Connected" : "Not synced",
+                                        badgeText: isConnected ? "Connected" : "Not synced",
                                         icon: Icons.thermostat_outlined,
                                         tint: AppColors.warningColor,
                                       ),
                                     ),
                                     const SizedBox(width: 12),
 
-                                    // ✅ REPLACED Oxygen with Infection Score
+                                    // ✅ Infection assessment
                                     Expanded(
                                       child: _MetricGlassCard(
-                                        label: "Infection\nScore",
-                                        value: infectionMetricText,
+                                        label: "Infection\nAssessment",
+                                        value: assessment,
                                         unit: "",
                                         badgeText: selectedDoc == null
                                             ? "No case"
-                                            : assessment,
+                                            : (isHigh ? "High" : "Normal"),
                                         icon: Icons.health_and_safety_outlined,
-                                        tint: AppColors.primaryColor,
+                                        tint: infectionTint, // ✅ green/red
                                       ),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 12),
 
-                                // ✅ Real vitals charts from simulator history (simple sparklines)
+                                // ✅ Better colorful charts (numbers + legends)
                                 _GlassSectionCard(
-                                  title: "Trends",
+                                  title: "Your health overview",
                                   subtitle: isConnected
-                                      ? "Live data from watch simulator (updates every 2s)."
-                                      : "Open Watch Simulator (Settings) and press Connect to see live charts.",
+                                      ? "Charts update automatically when your watch is connected."
+                                      : "Connect your watch to see live charts. (Firebase charts still work below)",
                                   child: Column(
                                     children: [
-                                      _MiniChartSparkline(
-                                        title: "Heart rate trend",
-                                        hint: "last $_historyMax points",
-                                        values: _hrHistory
-                                            .map((e) => e.toDouble())
-                                            .toList(),
-                                        emptyHint: "No data yet",
+                                      _DashboardLineChartCard(
+                                        title: "Heart rate",
+                                        subtitle: "Last $_historyMax points",
+                                        unitRight: "bpm",
+                                        valuesA: _hrHistory.map((e) => e.toDouble()).toList(),
+                                        valuesB: const [],
+                                        colorA: AppColors.errorColor,
+                                        colorB: AppColors.secondaryColor,
+                                        labelA: "HR",
+                                        labelB: "",
+                                        emptyHint: "No heart-rate data yet",
                                       ),
                                       const SizedBox(height: 12),
-                                      _MiniChartSparkline(
-                                        title: "Temperature trend",
-                                        hint: "last $_historyMax points",
-                                        values: _tempHistory,
-                                        emptyHint: "No data yet",
+                                      _DashboardLineChartCard(
+                                        title: "Temperature",
+                                        subtitle: "Last $_historyMax points",
+                                        unitRight: "°C",
+                                        valuesA: _tempHistory,
+                                        valuesB: const [],
+                                        colorA: AppColors.warningColor,
+                                        colorB: AppColors.secondaryColor,
+                                        labelA: "Temp",
+                                        labelB: "",
+                                        emptyHint: "No temperature data yet",
                                       ),
                                       const SizedBox(height: 12),
-                                      _MiniChartDualSparkline(
-                                        title: "Blood pressure trend",
-                                        hint: "SYS / DIA • last $_historyMax points",
+                                      _DashboardLineChartCard(
+                                        title: "Blood pressure",
+                                        subtitle: "SYS / DIA • Last $_historyMax points",
+                                        unitRight: "mmHg",
                                         valuesA: _bpSysHistory,
                                         valuesB: _bpDiaHistory,
-                                        emptyHint: "No data yet",
+                                        colorA: AppColors.primaryColor,
+                                        colorB: AppColors.secondaryColor,
+                                        labelA: "SYS",
+                                        labelB: "DIA",
+                                        emptyHint: "No BP data yet",
                                       ),
                                     ],
                                   ),
@@ -441,39 +437,45 @@ class _HomepageState extends State<Homepage> {
 
                                 const SizedBox(height: 12),
 
-                                _GlassSectionCard(
-                                  title: "WHQ insights (data-ready)",
-                                  subtitle:
-                                  "We’ll compute simple analytics per case (no manual work).",
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      _InsightRow(
-                                        icon: Icons.query_stats_rounded,
-                                        title: "Completion consistency",
-                                        value: "streak, missed days, weekly rate",
-                                      ),
-                                      const SizedBox(height: 10),
-                                      _InsightRow(
-                                        icon: Icons.rule_rounded,
-                                        title: "Risk pattern",
-                                        value: "compare WHQ answers vs score changes",
-                                      ),
-                                      const SizedBox(height: 10),
-                                      _InsightRow(
-                                        icon: Icons.auto_graph_rounded,
-                                        title: "Forecast (later)",
-                                        value:
-                                        "basic trend-based early warning signal",
-                                      ),
-                                      const SizedBox(height: 14),
-                                      _WhiteHintPill(
-                                        text:
-                                        "Tip: Once connected, this screen becomes your “doctor-like” dashboard for each wound.",
-                                      ),
-                                    ],
+                                // ✅ Data science insights from Firebase vitals flags
+                                if (selectedDoc != null)
+                                  _VitalsInsightsFromFirebaseCard(
+                                    userId: user.uid,
+                                    caseId: selectedDoc!.id,
+                                  )
+                                else
+                                  _GlassSectionCard(
+                                    title: "Vitals insights",
+                                    subtitle: "Select a case to see Firebase-based insights.",
+                                    child: const SizedBox(height: 8),
                                   ),
-                                ),
+
+                                const SizedBox(height: 12),
+
+                                // ✅ Existing quick insights (WHQ-based)
+                                if (selectedDoc != null)
+                                  _PatientInsightsCard(
+                                    userId: user.uid,
+                                    caseId: selectedDoc!.id,
+                                    daysSince: daysSince,
+                                  )
+                                else
+                                  _GlassSectionCard(
+                                    title: "Quick insights",
+                                    subtitle: "Select a case to see your summary.",
+                                    child: const SizedBox(height: 8),
+                                  ),
+
+                                const SizedBox(height: 12),
+
+                                // ✅ Infection counts chart at the end (No sign vs High sign)
+                                if (selectedDoc != null)
+                                  _InfectionHistorySummaryCard(
+                                    userId: user.uid,
+                                    caseId: selectedDoc!.id,
+                                  )
+                                else
+                                  const SizedBox.shrink(),
 
                                 const SizedBox(height: 10),
                               ],
@@ -545,10 +547,8 @@ class _HomepageState extends State<Homepage> {
                     itemBuilder: (context, i) {
                       final d = cases[i];
                       final data = d.data();
-                      final title =
-                      _caseTitleFromData(data, fallback: "Untitled wound");
-                      final status =
-                      ((data['status'] as String?) ?? 'active').toLowerCase();
+                      final title = _caseTitleFromData(data, fallback: "Untitled wound");
+                      final status = ((data['status'] as String?) ?? 'active').toLowerCase();
                       final isClosed = status == 'closed';
                       final isSelected = d.id == selectedId;
 
@@ -581,9 +581,7 @@ class _HomepageState extends State<Homepage> {
                           child: Row(
                             children: [
                               _CardIconBadge(
-                                tint: isClosed
-                                    ? AppColors.textMuted
-                                    : AppColors.primaryColor,
+                                tint: isClosed ? AppColors.textMuted : AppColors.primaryColor,
                                 icon: Icons.folder_outlined,
                               ),
                               const SizedBox(width: 12),
@@ -616,9 +614,7 @@ class _HomepageState extends State<Homepage> {
                               const SizedBox(width: 10),
                               _StatusChip(
                                 text: isClosed ? "Closed" : "Active",
-                                color: isClosed
-                                    ? AppColors.textMuted
-                                    : AppColors.successColor,
+                                color: isClosed ? AppColors.textMuted : AppColors.successColor,
                               ),
                             ],
                           ),
@@ -636,7 +632,6 @@ class _HomepageState extends State<Homepage> {
     );
   }
 
-  // ✅ UPDATED: always return the real title (no "Wound 1/2" numbering)
   static String _caseTitleForDoc(
       QueryDocumentSnapshot<Map<String, dynamic>>? selected,
       List<QueryDocumentSnapshot<Map<String, dynamic>>> all,
@@ -650,14 +645,16 @@ class _HomepageState extends State<Homepage> {
       Map<String, dynamic> data, {
         required String fallback,
       }) {
-    final v = data['title'] ?? data['name'] ?? data['caseTitle'];
+    final v = data['title'] ?? data['name'] ?? data['caseTitle'] ?? data['caseName'];
     final s = (v is String) ? v.trim() : '';
     if (s.isNotEmpty) return s;
     return fallback;
   }
 
-  static String _getUserName(Map<String, dynamic>? data,
-      {required String fallback}) {
+  static String _getUserName(
+      Map<String, dynamic>? data, {
+        required String fallback,
+      }) {
     if (data == null) return fallback;
     final v = data['name'] ?? data['username'] ?? data['displayName'];
     final s = (v is String) ? v.trim() : '';
@@ -904,8 +901,7 @@ class _CasePickerPill extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.primaryColor),
+              const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryColor),
             ],
           ),
         ),
@@ -922,6 +918,7 @@ class _CaseSummaryCard extends StatelessWidget {
     required this.title,
     required this.dayLabel,
     required this.isClosed,
+    required this.isHigh,
     required this.scoreText,
     required this.assessment,
     required this.startDate,
@@ -933,8 +930,11 @@ class _CaseSummaryCard extends StatelessWidget {
   final String title;
   final String dayLabel;
   final bool isClosed;
+
+  final bool isHigh;
   final String scoreText;
   final String assessment;
+
   final String startDate;
   final String lastUpdated;
 
@@ -943,6 +943,7 @@ class _CaseSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = isClosed ? AppColors.textMuted : AppColors.successColor;
+    final assessTint = isHigh ? AppColors.errorColor : AppColors.successColor;
 
     return Opacity(
       opacity: enabled ? 1 : 0.65,
@@ -989,7 +990,7 @@ class _CaseSummaryCard extends StatelessWidget {
                           dayLabel,
                           style: GoogleFonts.inter(
                             fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             color: AppColors.textMuted,
                           ),
                         ),
@@ -1007,19 +1008,9 @@ class _CaseSummaryCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(
-                    child: _InfoMini(
-                      icon: Icons.calendar_today_outlined,
-                      label: startDate,
-                    ),
-                  ),
+                  Expanded(child: _InfoMini(icon: Icons.calendar_today_outlined, label: startDate)),
                   const SizedBox(width: 14),
-                  Expanded(
-                    child: _InfoMini(
-                      icon: Icons.access_time,
-                      label: lastUpdated,
-                    ),
-                  ),
+                  Expanded(child: _InfoMini(icon: Icons.access_time, label: lastUpdated)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -1027,10 +1018,10 @@ class _CaseSummaryCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _KpiTile(
-                      title: "Infection score",
-                      value: scoreText,
-                      pill: assessment,
-                      tint: AppColors.primaryColor,
+                      title: "Infection assessment",
+                      value: assessment,
+                      pill: isHigh ? "Action needed" : "Looks ok",
+                      tint: assessTint,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1100,7 +1091,7 @@ class _KpiTile extends StatelessWidget {
               Text(
                 value ?? "--",
                 style: GoogleFonts.dmSans(
-                  fontSize: 22,
+                  fontSize: 18,
                   fontWeight: FontWeight.w900,
                   color: AppColors.textPrimary,
                 ),
@@ -1243,7 +1234,7 @@ class _MetricGlassCard extends StatelessWidget {
                   child: Text(
                     value,
                     style: GoogleFonts.dmSans(
-                      fontSize: 24,
+                      fontSize: 18,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textPrimary,
                     ),
@@ -1271,8 +1262,8 @@ class _MetricGlassCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
-              color: AppColors.surfaceColor.withOpacity(0.95),
-              border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+              color: tint.withOpacity(0.08),
+              border: Border.all(color: tint.withOpacity(0.18)),
             ),
             child: Text(
               badgeText,
@@ -1349,113 +1340,47 @@ class _GlassSectionCard extends StatelessWidget {
   }
 }
 
-/// Single sparkline
-class _MiniChartSparkline extends StatelessWidget {
-  const _MiniChartSparkline({
+/* ===================== DASHBOARD STYLE CHART CARD (colorful + numbers) ===================== */
+
+class _DashboardLineChartCard extends StatelessWidget {
+  const _DashboardLineChartCard({
     required this.title,
-    required this.hint,
-    required this.values,
-    required this.emptyHint,
-  });
-
-  final String title;
-  final String hint;
-  final List<double> values;
-  final String emptyHint;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasData =
-        values.where((v) => v != 0).isNotEmpty && values.length >= 3;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        color: AppColors.surfaceColor.withOpacity(0.95),
-        border: Border.all(color: AppColors.primaryColor.withOpacity(0.10)),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.show_chart_rounded,
-                  color: AppColors.primaryColor, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            height: 84,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              color: Colors.white.withOpacity(0.90),
-              border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
-            ),
-            child: hasData
-                ? CustomPaint(
-              painter: _SparklineFromValuesPainter(values: values),
-              child: const SizedBox.expand(),
-            )
-                : Center(
-              child: Text(
-                emptyHint,
-                style: GoogleFonts.inter(
-                  fontSize: 12.2,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            hint,
-            style: GoogleFonts.inter(
-              fontSize: 12.2,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMuted,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Two sparklines (SYS/DIA) in one chart
-class _MiniChartDualSparkline extends StatelessWidget {
-  const _MiniChartDualSparkline({
-    required this.title,
-    required this.hint,
+    required this.subtitle,
     required this.valuesA,
     required this.valuesB,
+    required this.colorA,
+    required this.colorB,
+    required this.labelA,
+    required this.labelB,
     required this.emptyHint,
+    required this.unitRight,
   });
 
   final String title;
-  final String hint;
+  final String subtitle;
   final List<double> valuesA;
   final List<double> valuesB;
+  final Color colorA;
+  final Color colorB;
+  final String labelA;
+  final String labelB;
   final String emptyHint;
+  final String unitRight;
+
+  bool _hasData(List<double> v) => v.where((x) => x != 0).isNotEmpty && v.length >= 3;
 
   @override
   Widget build(BuildContext context) {
-    final hasData = valuesA.where((v) => v != 0).isNotEmpty &&
-        valuesB.where((v) => v != 0).isNotEmpty &&
-        valuesA.length >= 3 &&
-        valuesB.length >= 3;
+    final aOk = _hasData(valuesA);
+    final bOk = valuesB.isNotEmpty ? _hasData(valuesB) : false;
+    final hasData = aOk || bOk;
+
+    final all = <double>[
+      ...valuesA.where((e) => e != 0),
+      ...valuesB.where((e) => e != 0),
+    ];
+    final minV = all.isEmpty ? 0.0 : all.reduce(math.min);
+    final maxV = all.isEmpty ? 1.0 : all.reduce(math.max);
 
     return Container(
       decoration: BoxDecoration(
@@ -1469,33 +1394,83 @@ class _MiniChartDualSparkline extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.monitor_heart_outlined,
-                  color: AppColors.primaryColor, size: 18),
+              const Icon(Icons.show_chart_rounded, color: AppColors.primaryColor, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   title,
                   style: GoogleFonts.inter(
-                    fontSize: 13,
+                    fontSize: 13.2,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
                   ),
                 ),
               ),
+              Text(
+                unitRight,
+                style: GoogleFonts.inter(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textMuted,
+                ),
+              ),
             ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: GoogleFonts.inter(
+              fontSize: 12.2,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 10),
           Container(
-            height: 84,
+            height: 120,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               color: Colors.white.withOpacity(0.90),
               border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
             ),
             child: hasData
-                ? CustomPaint(
-              painter: _DualSparklinePainter(a: valuesA, b: valuesB),
-              child: const SizedBox.expand(),
+                ? Stack(
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _DashboardLinePainter(
+                      a: valuesA,
+                      b: valuesB,
+                      colorA: colorA,
+                      colorB: colorB,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 10,
+                  top: 8,
+                  child: Text(
+                    "max: ${maxV.toStringAsFixed(1)}",
+                    style: GoogleFonts.inter(
+                      fontSize: 11.0,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 10,
+                  bottom: 8,
+                  child: Text(
+                    "min: ${minV.toStringAsFixed(1)}",
+                    style: GoogleFonts.inter(
+                      fontSize: 11.0,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ],
             )
                 : Center(
               child: Text(
@@ -1509,13 +1484,23 @@ class _MiniChartDualSparkline extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Text(
-            hint,
-            style: GoogleFonts.inter(
-              fontSize: 12.2,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMuted,
-            ),
+          Row(
+            children: [
+              _LegendDot(color: colorA, text: labelA.isEmpty ? "A" : labelA),
+              if (valuesB.isNotEmpty) ...[
+                const SizedBox(width: 10),
+                _LegendDot(color: colorB, text: labelB.isEmpty ? "B" : labelB),
+              ],
+              const Spacer(),
+              Text(
+                "trend",
+                style: GoogleFonts.inter(
+                  fontSize: 11.2,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1523,114 +1508,285 @@ class _MiniChartDualSparkline extends StatelessWidget {
   }
 }
 
-class _SparklineFromValuesPainter extends CustomPainter {
-  _SparklineFromValuesPainter({required this.values});
-
-  final List<double> values;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // grid dots
-    final dotPaint = Paint()..color = Colors.black.withOpacity(0.06);
-    for (double x = 10; x < size.width; x += 22) {
-      for (double y = 10; y < size.height; y += 22) {
-        canvas.drawCircle(Offset(x, y), 1.4, dotPaint);
-      }
-    }
-
-    if (values.length < 2) return;
-
-    final minV = values.reduce((a, b) => a < b ? a : b);
-    final maxV = values.reduce((a, b) => a > b ? a : b);
-    final range = (maxV - minV).abs() < 1e-6 ? 1.0 : (maxV - minV);
-
-    final paint = Paint()
-      ..color = AppColors.primaryColor.withOpacity(0.40)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final pts = <Offset>[];
-    for (int i = 0; i < values.length; i++) {
-      final x = (i / (values.length - 1)) * (size.width - 20) + 10;
-      final norm = (values[i] - minV) / range;
-      final y = (1 - norm) * (size.height - 20) + 10;
-      pts.add(Offset(x, y));
-    }
-
-    final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-    for (int i = 1; i < pts.length; i++) {
-      path.lineTo(pts[i].dx, pts[i].dy);
-    }
-
-    canvas.drawPath(path, paint);
-  }
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color, required this.text});
+  final Color color;
+  final String text;
 
   @override
-  bool shouldRepaint(covariant _SparklineFromValuesPainter oldDelegate) {
-    return oldDelegate.values != values;
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: GoogleFonts.inter(
+            fontSize: 11.4,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
   }
 }
 
-class _DualSparklinePainter extends CustomPainter {
-  _DualSparklinePainter({required this.a, required this.b});
+class _DashboardLinePainter extends CustomPainter {
+  _DashboardLinePainter({
+    required this.a,
+    required this.b,
+    required this.colorA,
+    required this.colorB,
+  });
 
   final List<double> a;
   final List<double> b;
+  final Color colorA;
+  final Color colorB;
 
   @override
   void paint(Canvas canvas, Size size) {
-    // grid dots
-    final dotPaint = Paint()..color = Colors.black.withOpacity(0.06);
+    // dotted background grid
+    final dotPaint = Paint()..color = Colors.black.withOpacity(0.045);
     for (double x = 10; x < size.width; x += 22) {
       for (double y = 10; y < size.height; y += 22) {
-        canvas.drawCircle(Offset(x, y), 1.4, dotPaint);
+        canvas.drawCircle(Offset(x, y), 1.35, dotPaint);
       }
     }
 
-    if (a.length < 2 || b.length < 2) return;
+    if (a.length < 2) return;
 
-    final all = [...a, ...b];
-    final minV = all.reduce((x, y) => x < y ? x : y);
-    final maxV = all.reduce((x, y) => x > y ? x : y);
+    final all = <double>[
+      ...a.where((e) => e != 0),
+      ...b.where((e) => e != 0),
+    ];
+    if (all.isEmpty) return;
+
+    final minV = all.reduce(math.min);
+    final maxV = all.reduce(math.max);
     final range = (maxV - minV).abs() < 1e-6 ? 1.0 : (maxV - minV);
 
-    // line A (SYS)
-    final paintA = Paint()
-      ..color = AppColors.primaryColor.withOpacity(0.42)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    // line B (DIA)
-    final paintB = Paint()
-      ..color = AppColors.secondaryColor.withOpacity(0.42)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    Path pathFrom(List<double> values) {
-      final pts = <Offset>[];
-      for (int i = 0; i < values.length; i++) {
-        final x = (i / (values.length - 1)) * (size.width - 20) + 10;
-        final norm = (values[i] - minV) / range;
-        final y = (1 - norm) * (size.height - 20) + 10;
-        pts.add(Offset(x, y));
-      }
-      final p = Path()..moveTo(pts.first.dx, pts.first.dy);
-      for (int i = 1; i < pts.length; i++) {
-        p.lineTo(pts[i].dx, pts[i].dy);
-      }
-      return p;
+    Offset mapPoint(int i, List<double> values) {
+      final x = (i / (values.length - 1)) * (size.width - 20) + 10;
+      final norm = (values[i] - minV) / range;
+      final y = (1 - norm) * (size.height - 24) + 12;
+      return Offset(x, y);
     }
 
-    canvas.drawPath(pathFrom(a), paintA);
-    canvas.drawPath(pathFrom(b), paintB);
+    void drawSeries(List<double> values, Color c) {
+      if (values.length < 2) return;
+      final pts = <Offset>[];
+      for (int i = 0; i < values.length; i++) {
+        pts.add(mapPoint(i, values));
+      }
+
+      // fill under curve (soft)
+      final fill = Paint()
+        ..color = c.withOpacity(0.10)
+        ..style = PaintingStyle.fill;
+
+      final fillPath = Path()
+        ..moveTo(pts.first.dx, size.height - 12)
+        ..lineTo(pts.first.dx, pts.first.dy);
+      for (int i = 1; i < pts.length; i++) {
+        fillPath.lineTo(pts[i].dx, pts[i].dy);
+      }
+      fillPath.lineTo(pts.last.dx, size.height - 12);
+      fillPath.close();
+
+      canvas.drawPath(fillPath, fill);
+
+      final stroke = Paint()
+        ..color = c.withOpacity(0.95)
+        ..strokeWidth = 3.0
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+
+      final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+      for (int i = 1; i < pts.length; i++) {
+        path.lineTo(pts[i].dx, pts[i].dy);
+      }
+      canvas.drawPath(path, stroke);
+
+      // last-point marker
+      canvas.drawCircle(pts.last, 4.2, Paint()..color = c.withOpacity(0.95));
+      canvas.drawCircle(pts.last, 8.0, Paint()..color = c.withOpacity(0.12));
+    }
+
+    drawSeries(a, colorA);
+    if (b.isNotEmpty) drawSeries(b, colorB);
   }
 
   @override
-  bool shouldRepaint(covariant _DualSparklinePainter oldDelegate) {
+  bool shouldRepaint(covariant _DashboardLinePainter oldDelegate) {
     return oldDelegate.a != a || oldDelegate.b != b;
+  }
+}
+
+/* ===================== Data-science insights from Firebase vitals flags ===================== */
+
+class _VitalsInsightsFromFirebaseCard extends StatelessWidget {
+  const _VitalsInsightsFromFirebaseCard({
+    required this.userId,
+    required this.caseId,
+  });
+
+  final String userId;
+  final String caseId;
+
+  bool _truthy(dynamic v) {
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    final s = (v ?? '').toString().trim().toLowerCase();
+    return s == 'true' || s == 'yes' || s == '1';
+  }
+
+  int _asInt(dynamic v) => (v is int) ? v : int.tryParse('$v') ?? 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('cases')
+        .doc(caseId);
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: () async {
+        // We will try multiple collections (because schema might differ)
+        final candidates = <CollectionReference<Map<String, dynamic>>>[
+          base.collection('vitals'),
+          base.collection('vitalsLogs'),
+          base.collection('watchVitals'),
+          base.collection('smartwatchVitals'),
+        ];
+        QuerySnapshot<Map<String, dynamic>>? snap;
+
+        for (final col in candidates) {
+          try {
+            snap = await col.orderBy('createdAt', descending: true).limit(30).get();
+            break;
+          } catch (_) {
+            // try next
+          }
+        }
+
+        if (snap == null) {
+          // couldn’t read any collection
+          return {
+            'total': 0,
+            'highTempCount': 0,
+            'highHrCount': 0,
+            'highBpCount': 0,
+            'last3N': 0,
+            'last3HighTemp': 0,
+          };
+        }
+
+        final docs = snap.docs.map((d) => d.data()).toList();
+
+        // flags: 0 ok, 1 high (as you said)
+        int highTempCount = 0;
+        int highHrCount = 0;
+        int highBpCount = 0;
+
+        // last 3 summary
+        int last3HighTemp = 0;
+        int last3N = math.min(3, docs.length);
+
+        for (int i = 0; i < docs.length; i++) {
+          final d = docs[i];
+
+          // try common names
+          final tempFlag = d['tempFlag'] ?? d['temperatureFlag'] ?? d['highTempFlag'] ?? d['feverFlag'] ?? d['fever'];
+          final hrFlag = d['hrFlag'] ?? d['heartRateFlag'] ?? d['highHrFlag'];
+          final bpFlag = d['bpFlag'] ?? d['bloodPressureFlag'] ?? d['highBpFlag'];
+
+          if (_truthy(tempFlag) || _asInt(tempFlag) == 1) highTempCount++;
+          if (_truthy(hrFlag) || _asInt(hrFlag) == 1) highHrCount++;
+          if (_truthy(bpFlag) || _asInt(bpFlag) == 1) highBpCount++;
+
+          if (i < 3) {
+            if (_truthy(tempFlag) || _asInt(tempFlag) == 1) last3HighTemp++;
+          }
+        }
+
+        return {
+          'total': docs.length,
+          'highTempCount': highTempCount,
+          'highHrCount': highHrCount,
+          'highBpCount': highBpCount,
+          'last3N': last3N,
+          'last3HighTemp': last3HighTemp,
+        };
+      }(),
+      builder: (context, snap) {
+        final data = snap.data;
+
+        final total = data?['total'] as int? ?? 0;
+        final highTempCount = data?['highTempCount'] as int? ?? 0;
+        final highHrCount = data?['highHrCount'] as int? ?? 0;
+        final highBpCount = data?['highBpCount'] as int? ?? 0;
+
+        final last3N = data?['last3N'] as int? ?? 0;
+        final last3HighTemp = data?['last3HighTemp'] as int? ?? 0;
+
+        final subtitle = total == 0
+            ? "No vitals logs found yet in Firebase."
+            : "Based on last $total vitals logs in Firebase.";
+
+        return _GlassSectionCard(
+          title: "Vitals insights (Firebase)",
+          subtitle: subtitle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _InsightRow(
+                icon: Icons.local_fire_department_outlined,
+                title: "High fever flag",
+                value: total == 0 ? "--" : "$highTempCount / $total readings",
+              ),
+              const SizedBox(height: 10),
+              _InsightRow(
+                icon: Icons.favorite_outline,
+                title: "High heart-rate flag",
+                value: total == 0 ? "--" : "$highHrCount / $total readings",
+              ),
+              const SizedBox(height: 10),
+              _InsightRow(
+                icon: Icons.water_drop_outlined,
+                title: "High blood-pressure flag",
+                value: total == 0 ? "--" : "$highBpCount / $total readings",
+              ),
+              const SizedBox(height: 14),
+              Text(
+                last3N == 0
+                    ? "Tip: once vitals are stored, you’ll see “2/3 had high fever” here."
+                    : "Recent summary: $last3HighTemp / $last3N had high fever",
+                style: GoogleFonts.inter(
+                  fontSize: 12.8,
+                  fontWeight: FontWeight.w900,
+                  color: (last3N > 0 && last3HighTemp >= 2)
+                      ? AppColors.errorColor
+                      : AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _MiniBar(
+                value: highTempCount,
+                max: math.max(1, total),
+                label: total == 0 ? "--" : "${((highTempCount / total) * 100).round()}% high temp",
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -1680,37 +1836,377 @@ class _InsightRow extends StatelessWidget {
   }
 }
 
-class _WhiteHintPill extends StatelessWidget {
-  const _WhiteHintPill({required this.text});
-  final String text;
+/* ===================== Existing WHQ insights card ===================== */
+
+class _PatientInsightsCard extends StatelessWidget {
+  const _PatientInsightsCard({
+    required this.userId,
+    required this.caseId,
+    required this.daysSince,
+  });
+
+  final String userId;
+  final String caseId;
+  final int? daysSince;
+
+  bool _truthy(dynamic v) {
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    final s = (v ?? '').toString().trim().toLowerCase();
+    return s == 'true' || s == 'yes' || s == '1';
+  }
+
+  int _asInt(dynamic v) => (v is int) ? v : int.tryParse('$v') ?? 0;
 
   @override
   Widget build(BuildContext context) {
+    final base = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('cases')
+        .doc(caseId);
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: () async {
+        // last 3 WHQ
+        QuerySnapshot<Map<String, dynamic>> whqSnap;
+        try {
+          whqSnap = await base.collection('whq').orderBy('createdAt', descending: true).limit(3).get();
+        } catch (_) {
+          whqSnap = await base.collection('whqResponses').orderBy('createdAt', descending: true).limit(3).get();
+        }
+
+        final whqDocs = whqSnap.docs.map((d) => d.data()).toList();
+
+        int rednessCount = 0;
+        int dischargeCount = 0;
+        int feverCount = 0;
+
+        for (final w in whqDocs) {
+          if (_truthy(w['redness'] ?? w['hasRedness'] ?? w['erythema'])) rednessCount++;
+          if (_truthy(w['discharge'] ?? w['hasDischarge'] ?? w['exudate'])) dischargeCount++;
+          if (_truthy(w['fever'] ?? w['hasFever'])) feverCount++;
+        }
+
+        // high infection days from infectionScores history
+        int highDays = 0;
+        try {
+          final scoreSnap = await base.collection('infectionScores').orderBy('date', descending: true).limit(30).get();
+          for (final d in scoreSnap.docs) {
+            final s = _asInt(d.data()['score'] ?? d.data()['infectionScore']);
+            if (s >= 4) highDays++;
+          }
+        } catch (_) {
+          final caseDoc = await base.get();
+          final s = _asInt(caseDoc.data()?['infectionScore']);
+          highDays = (s >= 4) ? 1 : 0;
+        }
+
+        return {
+          'whqCount': whqDocs.length,
+          'rednessCount': rednessCount,
+          'dischargeCount': dischargeCount,
+          'feverCount': feverCount,
+          'highDays': highDays,
+        };
+      }(),
+      builder: (context, snap) {
+        final data = snap.data;
+        final whqCount = data?['whqCount'] as int? ?? 0;
+
+        final redness = data?['rednessCount'] as int? ?? 0;
+        final discharge = data?['dischargeCount'] as int? ?? 0;
+        final fever = data?['feverCount'] as int? ?? 0;
+
+        final highDays = data?['highDays'] as int? ?? 0;
+
+        return _GlassSectionCard(
+          title: "Quick insights",
+          subtitle: "Simple summary based on your recent answers.",
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _InsightRow(
+                icon: Icons.calendar_month_rounded,
+                title: "Days since start",
+                value: daysSince == null ? "--" : "$daysSince days",
+              ),
+              const SizedBox(height: 10),
+              _InsightRow(
+                icon: Icons.fact_check_outlined,
+                title: "Last 3 WHQ checks",
+                value: whqCount == 0
+                    ? "No WHQ submitted yet"
+                    : "Redness: $redness/$whqCount • Discharge: $discharge/$whqCount • Fever: $fever/$whqCount",
+              ),
+              const SizedBox(height: 14),
+              Text(
+                "High sign of infection (score ≥ 4) — last 30 entries",
+                style: GoogleFonts.inter(
+                  fontSize: 12.6,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _MiniBar(value: highDays, max: 30, label: "$highDays days"),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MiniBar extends StatelessWidget {
+  const _MiniBar({required this.value, required this.max, required this.label});
+  final int value;
+  final int max;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value.clamp(0, max);
+    final pct = max == 0 ? 0.0 : (v / max);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      height: 44,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(16),
         color: Colors.white.withOpacity(0.90),
         border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          const Icon(Icons.lightbulb_outline_rounded,
-              size: 18, color: AppColors.primaryColor),
-          const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              text,
-              style: GoogleFonts.inter(
-                fontSize: 12.2,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textSecondary,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: pct,
+                minHeight: 10,
+                backgroundColor: Colors.black.withOpacity(0.06),
+                color: pct >= (4 / 30) ? AppColors.errorColor : AppColors.successColor,
               ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+/* ===================== Infection summary chart (No sign vs High sign) ===================== */
+
+class _InfectionHistorySummaryCard extends StatelessWidget {
+  const _InfectionHistorySummaryCard({
+    required this.userId,
+    required this.caseId,
+  });
+
+  final String userId;
+  final String caseId;
+
+  int _asInt(dynamic v) => (v is int) ? v : int.tryParse('$v') ?? 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('cases')
+        .doc(caseId);
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: () async {
+        // prefer infectionScores history
+        int high = 0;
+        int normal = 0;
+        final scores = <int>[];
+
+        try {
+          final snap = await base.collection('infectionScores').orderBy('date', descending: true).limit(30).get();
+          for (final d in snap.docs) {
+            final s = _asInt(d.data()['score'] ?? d.data()['infectionScore']);
+            scores.add(s);
+            if (s >= 4) {
+              high++;
+            } else {
+              normal++;
+            }
+          }
+        } catch (_) {
+          // fallback: use current infectionScore only
+          final doc = await base.get();
+          final s = _asInt(doc.data()?['infectionScore']);
+          scores.add(s);
+          if (s >= 4) {
+            high = 1;
+          } else {
+            normal = 1;
+          }
+        }
+
+        return {
+          'high': high,
+          'normal': normal,
+          'scores': scores.reversed.toList(), // oldest -> newest
+        };
+      }(),
+      builder: (context, snap) {
+        final data = snap.data;
+        final high = data?['high'] as int? ?? 0;
+        final normal = data?['normal'] as int? ?? 0;
+        final scores = (data?['scores'] as List<dynamic>?)?.map((e) => (e as int)).toList() ?? <int>[];
+
+        final total = high + normal;
+        final subtitle = total == 0 ? "No infection history found yet." : "Last $total entries";
+
+        return _GlassSectionCard(
+          title: "Infection trend summary",
+          subtitle: subtitle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 120,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: Colors.white.withOpacity(0.90),
+                  border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+                ),
+                child: CustomPaint(
+                  painter: _NoHighBarPainter(
+                    normal: normal,
+                    high: high,
+                    colorNormal: AppColors.successColor,
+                    colorHigh: AppColors.errorColor,
+                  ),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _LegendDot(color: AppColors.successColor, text: "No sign"),
+                  const SizedBox(width: 12),
+                  _LegendDot(color: AppColors.errorColor, text: "High sign"),
+                  const Spacer(),
+                  Text(
+                    total == 0 ? "--" : "${((high / total) * 100).round()}% high",
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: (total > 0 && (high / total) >= 0.4)
+                          ? AppColors.errorColor
+                          : AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (scores.length >= 3)
+                _DashboardLineChartCard(
+                  title: "Infection score over time",
+                  subtitle: "Older → Newer",
+                  unitRight: "score",
+                  valuesA: scores.map((e) => e.toDouble()).toList(),
+                  valuesB: const [],
+                  colorA: AppColors.primaryColor,
+                  colorB: AppColors.secondaryColor,
+                  labelA: "Score",
+                  labelB: "",
+                  emptyHint: "No score data",
+                )
+              else
+                Text(
+                  "Add more entries to see score trend line.",
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _NoHighBarPainter extends CustomPainter {
+  _NoHighBarPainter({
+    required this.normal,
+    required this.high,
+    required this.colorNormal,
+    required this.colorHigh,
+  });
+
+  final int normal;
+  final int high;
+  final Color colorNormal;
+  final Color colorHigh;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final total = math.max(1, normal + high);
+
+    // grid
+    final grid = Paint()..color = Colors.black.withOpacity(0.05);
+    for (double y = 14; y < size.height; y += 22) {
+      canvas.drawLine(Offset(12, y), Offset(size.width - 12, y), grid);
+    }
+
+    final barW = (size.width - 36) / 2;
+    final maxH = size.height - 26;
+
+    final normalH = (normal / total) * maxH;
+    final highH = (high / total) * maxH;
+
+    final r = Radius.circular(16);
+
+    Rect rectNormal = Rect.fromLTWH(12, size.height - 12 - normalH, barW, normalH);
+    Rect rectHigh = Rect.fromLTWH(24 + barW, size.height - 12 - highH, barW, highH);
+
+    final paintN = Paint()..color = colorNormal.withOpacity(0.95);
+    final paintH = Paint()..color = colorHigh.withOpacity(0.95);
+
+    canvas.drawRRect(RRect.fromRectAndRadius(rectNormal, r), paintN);
+    canvas.drawRRect(RRect.fromRectAndRadius(rectHigh, r), paintH);
+
+    // labels
+    final tp = (String s) => TextPainter(
+      text: TextSpan(
+        text: s,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final t1 = tp("No sign\n$normal");
+    t1.paint(canvas, Offset(12 + 8, size.height - 12 - normalH + 10));
+
+    final t2 = tp("High sign\n$high");
+    t2.paint(canvas, Offset(24 + barW + 8, size.height - 12 - highH + 10));
+  }
+
+  @override
+  bool shouldRepaint(covariant _NoHighBarPainter oldDelegate) {
+    return oldDelegate.normal != normal || oldDelegate.high != high;
   }
 }
 
@@ -1850,9 +2346,16 @@ int? _daysSince(dynamic startDate) {
 }
 
 int _infectionScore(Map<String, dynamic> data) {
-  final raw = data['infectionScore'];
+  final raw = data['infectionScore'] ?? data['score'];
   if (raw is int) return raw;
   return int.tryParse('$raw') ?? 0;
+}
+
+bool _isHighInfection(int? score) => (score ?? 0) >= 4;
+
+String _assessmentLabelSimple(int? score) {
+  if (score == null) return "No data yet";
+  return _isHighInfection(score) ? "High sign of infection" : "No sign of infection";
 }
 
 DateTime? _toDate(dynamic value) {
@@ -1875,9 +2378,11 @@ String _formatDate(dynamic value) {
   return "$y-$m-$d";
 }
 
-String _assessmentFromScore(int? score) {
-  if (score == null) return "No data yet";
-  if (score <= 2) return "Low sign of infection • keep monitoring";
-  if (score <= 5) return "Warning • watch symptoms";
-  return "High risk • seek care";
+String _funDayLabel(int? daysSince) {
+  if (daysSince == null) return "Day --";
+  if (daysSince <= 3) return "Day $daysSince • 🌱";
+  if (daysSince <= 7) return "Day $daysSince • ✨";
+  if (daysSince <= 14) return "Day $daysSince • 💪";
+  if (daysSince <= 30) return "Day $daysSince • 🌟";
+  return "Day $daysSince • 🏁";
 }

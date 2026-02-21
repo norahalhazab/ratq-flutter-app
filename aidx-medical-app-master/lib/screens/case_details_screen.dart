@@ -20,15 +20,21 @@ class CaseDetailsScreen extends StatelessWidget {
   final String caseId;
   final int? caseNumber;
 
+  /// ✅ FIXED: No red page on rename
+  /// - If user clears the name => delete fields instead of saving null
+  /// - If the shown title is fallback like "Wound 3" => show empty input
   Future<void> _editCaseName(
       BuildContext context,
       DocumentReference<Map<String, dynamic>> caseRef,
-      String currentName,
+      String currentDisplayTitle,
       int fallbackNo,
       ) async {
-    final ctrl = TextEditingController(text: currentName);
+    final initialText =
+    currentDisplayTitle.startsWith("Wound ") ? "" : currentDisplayTitle;
 
-    final newName = await showDialog<String?>(
+    final ctrl = TextEditingController(text: initialText);
+
+    final result = await showDialog<String?>(
       context: context,
       barrierDismissible: true,
       builder: (ctx) {
@@ -51,7 +57,7 @@ class CaseDetailsScreen extends StatelessWidget {
                     ),
                     const Spacer(),
                     IconButton(
-                      onPressed: () => Navigator.pop(ctx),
+                      onPressed: () => Navigator.pop(ctx, null),
                       icon: const Icon(Icons.close_rounded),
                     ),
                   ],
@@ -61,6 +67,7 @@ class CaseDetailsScreen extends StatelessWidget {
                   controller: ctrl,
                   autofocus: true,
                   textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => Navigator.pop(ctx, ctrl.text),
                   decoration: InputDecoration(
                     hintText: "Example: Left knee",
                     border: OutlineInputBorder(
@@ -73,10 +80,7 @@ class CaseDetailsScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 46,
                   child: ElevatedButton(
-                    onPressed: () {
-                      final v = ctrl.text.trim();
-                      Navigator.pop(ctx, v.isEmpty ? null : v);
-                    },
+                    onPressed: () => Navigator.pop(ctx, ctrl.text),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryColor,
                       shape: RoundedRectangleBorder(
@@ -95,7 +99,7 @@ class CaseDetailsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  "If left empty, it will fallback to Wound $fallbackNo.",
+                  "Leave empty to use Wound $fallbackNo.",
                   style: GoogleFonts.inter(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -112,8 +116,21 @@ class CaseDetailsScreen extends StatelessWidget {
     ctrl.dispose();
 
     // user cancelled
-    if (newName == null) return;
+    if (result == null) return;
 
+    final newName = result.trim();
+
+    // ✅ empty => delete fields (no nulls)
+    if (newName.isEmpty) {
+      await caseRef.update({
+        'caseName': FieldValue.delete(),
+        'title': FieldValue.delete(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    // ✅ normal save
     await caseRef.update({
       'caseName': newName,
       'title': newName,
@@ -193,13 +210,19 @@ class CaseDetailsScreen extends StatelessWidget {
                 final lastValue = data['lastUpdated'] ?? data['createdAt'];
                 final lastUpdatedText = _formatDateTime(lastValue);
 
+                // ✅ Infection assessment (NO SCORE SHOWN)
                 final scoreRaw = data['infectionScore'];
-                final int? score =
-                scoreRaw is int ? scoreRaw : int.tryParse('$scoreRaw');
-                final scoreText = score?.toString() ?? '--';
-                final assessment = _assessmentFromScore(score);
+                final int score =
+                (scoreRaw is int) ? scoreRaw : int.tryParse('$scoreRaw') ?? 0;
 
-                final isHighRisk = (score ?? 0) >= 6;
+                // your rule: >=4 => High sign
+                final bool isHighRisk = score >= 4;
+                final String assessment = isHighRisk
+                    ? "High sign of infection"
+                    : "No sign of infection";
+
+                final Color assessTint =
+                isHighRisk ? AppColors.errorColor : AppColors.successColor;
 
                 return Stack(
                   children: [
@@ -240,15 +263,11 @@ class CaseDetailsScreen extends StatelessWidget {
 
                           const SizedBox(height: 14),
 
-                          // ✅ Title + Edit button
+                          // ✅ Title + Edit button (fixed)
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              _FolderBubble(
-                                tint: isHighRisk
-                                    ? AppColors.errorColor
-                                    : AppColors.primaryColor,
-                              ),
+                              _FolderBubble(tint: assessTint),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
@@ -346,6 +365,7 @@ class CaseDetailsScreen extends StatelessWidget {
 
                                 const SizedBox(height: 14),
 
+                                // ✅ REPLACED: Infection assessment card (no score circle)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 14),
@@ -353,9 +373,7 @@ class CaseDetailsScreen extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(22),
                                     color: AppColors.surfaceColor.withOpacity(0.92),
                                     border: Border.all(
-                                      color: isHighRisk
-                                          ? AppColors.errorColor.withOpacity(0.16)
-                                          : AppColors.primaryColor.withOpacity(0.10),
+                                      color: assessTint.withOpacity(0.20),
                                     ),
                                   ),
                                   child: Row(
@@ -366,54 +384,37 @@ class CaseDetailsScreen extends StatelessWidget {
                                           CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              "Infection score",
+                                              "Infection assessment",
                                               style: GoogleFonts.inter(
                                                 fontSize: 12.8,
                                                 fontWeight: FontWeight.w800,
                                                 color: AppColors.textSecondary,
                                               ),
                                             ),
-                                            const SizedBox(height: 6),
+                                            const SizedBox(height: 8),
                                             _MiniPillText(
                                               text: assessment,
-                                              tint: isHighRisk
-                                                  ? AppColors.errorColor
-                                                  : AppColors.primaryColor,
+                                              tint: assessTint,
                                             ),
                                           ],
                                         ),
                                       ),
                                       const SizedBox(width: 12),
                                       Container(
-                                        width: 62,
-                                        height: 62,
+                                        width: 48,
+                                        height: 48,
                                         decoration: BoxDecoration(
-                                          borderRadius:
-                                          BorderRadius.circular(22),
-                                          gradient: isHighRisk
-                                              ? AppColors.dangerGradient
-                                              : AppColors.primaryGradient,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: (isHighRisk
-                                                  ? AppColors.errorColor
-                                                  : AppColors.primaryColor)
-                                                  .withOpacity(0.22),
-                                              blurRadius: 22,
-                                              offset: const Offset(0, 14),
-                                              spreadRadius: -10,
-                                            ),
-                                          ],
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            scoreText,
-                                            style: GoogleFonts.dmSans(
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.w900,
-                                              color: Colors.white,
-                                            ),
+                                          borderRadius: BorderRadius.circular(18),
+                                          color: assessTint.withOpacity(0.12),
+                                          border: Border.all(
+                                            color: assessTint.withOpacity(0.22),
                                           ),
+                                        ),
+                                        child: Icon(
+                                          isHighRisk
+                                              ? Icons.warning_rounded
+                                              : Icons.verified_rounded,
+                                          color: assessTint,
                                         ),
                                       ),
                                     ],
@@ -834,7 +835,7 @@ class _StatusPill extends StatelessWidget {
       );
     }
 
-    final tint = isHighRisk ? AppColors.errorColor : AppColors.primaryColor;
+    final tint = isHighRisk ? AppColors.errorColor : AppColors.successColor;
 
     return _WhitePill(
       radius: 999,
@@ -849,7 +850,7 @@ class _StatusPill extends StatelessWidget {
           ),
           const SizedBox(width: 7),
           Text(
-            isHighRisk ? "High risk" : "Active",
+            isHighRisk ? "High sign" : "No sign",
             style: GoogleFonts.inter(
               fontSize: 11.8,
               fontWeight: FontWeight.w900,
@@ -1059,11 +1060,4 @@ String _formatDateTime(dynamic value) {
   } catch (_) {
     return "--";
   }
-}
-
-String _assessmentFromScore(int? score) {
-  if (score == null) return "No data yet";
-  if (score <= 2) return "Stable • keep monitoring";
-  if (score <= 5) return "Warning • watch symptoms";
-  return "High risk • seek care";
 }
