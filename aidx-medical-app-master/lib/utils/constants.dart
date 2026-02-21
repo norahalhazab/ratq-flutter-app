@@ -9,7 +9,6 @@ class AppConstants {
   
   // Shared Preferences Keys
   static const String prefThemeMode = "theme_mode";
-  static const String prefAutoSos = "auto_sos";
   static const String prefCountry = "news_country";
   static const String prefMood = "user_mood";
   
