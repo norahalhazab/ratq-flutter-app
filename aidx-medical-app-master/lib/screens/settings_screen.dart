@@ -2,10 +2,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'personal_information_screen.dart';
+
+import 'profile_screen.dart';
 import 'auth/login_screen.dart';
 import '../widgets/bottom_nav.dart';
 import 'smart_watch_simulator_screen.dart';
+import 'change_password_screen.dart';
+import 'notification_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -17,8 +20,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   static const Color primary = Color(0xFF3B7691);
 
-  // ✅ must match AppBottomNav height in bottom_nav.dart
-  // (your latest nav bar was 78)
+
   static const double _navBarHeight = 78;
 
   Future<void> _logout() async {
@@ -32,17 +34,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _comingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Coming soon")),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
-
       body: SafeArea(
         child: SingleChildScrollView(
           // ✅ dynamic bottom space so it never overlaps with the nav bar
@@ -103,9 +102,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                        FirebaseAuth.instance.currentUser?.displayName?.isNotEmpty == true
-                        ? FirebaseAuth.instance.currentUser!.displayName!
-                            : (FirebaseAuth.instance.currentUser?.email ?? "User"),
+                              user?.displayName?.isNotEmpty == true
+                                  ? user!.displayName!
+                                  : (user?.email ?? "User"),
                               style: GoogleFonts.inter(
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w800,
@@ -135,17 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 14),
 
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 8),
-                child: Text(
-                  "Other settings",
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF64748B),
-                  ),
-                ),
-              ),
+
 
               _GlassCard(
                 radius: 18,
@@ -155,9 +144,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingRow(
                       icon: Icons.notifications_none_rounded,
                       title: "Notifications",
-                      onTap: _comingSoon,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationSettingsScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const _DividerLine(),
+
                     _SettingRow(
                       icon: Icons.watch_outlined,
                       title: "Smartwatch pairing",
@@ -170,8 +167,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
-
                     const _DividerLine(),
+
+                    // ✅ Change password
+                    _SettingRow(
+                      icon: Icons.lock_reset_rounded,
+                      title: "Change password",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ChangePasswordScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const _DividerLine(),
+
                     _SettingRow(
                       icon: Icons.logout_rounded,
                       title: "Logout",
@@ -214,38 +226,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 /* ---------------- components ---------------- */
 
-class _TopBackButton extends StatelessWidget {
-  const _TopBackButton({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.70),
-              border: Border.all(color: Colors.white.withOpacity(0.75)),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.arrow_back_ios_new,
-              size: 18,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _GlassCard extends StatelessWidget {
   const _GlassCard({
