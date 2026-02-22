@@ -87,37 +87,59 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
       final String downloadUrl = jsonMap['secure_url'];
 
       // -----------------------------------------------------
-      // 2. CALL AI MODEL (Exudate Only for now)
+      // 2. CALL BOTH AI MODELS IN PARALLEL
       // -----------------------------------------------------
-      // This is your current Space dedicated to Exudate
       final exudateAiUrl = Uri.parse('https://laura-potato-ratq-ai.hf.space/analyze');
+      final erythemaAiUrl = Uri.parse('https://norahalhozab-ratq-erthyma.hf.space/analyze');
 
-      final exudateResponse = await http.post(
-        exudateAiUrl,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"imageUrl": downloadUrl}),
-      ).timeout(const Duration(seconds: 90));
+      print("🚀 Starting AI Analysis on both servers...");
 
-      // FIXED: Changed detectedExudate to int? because Python returns 0 or 1
-      int? detectedErythema; // Stays null until teammate's server is ready
+      // We start both requests at the same time to save time
+      final results = await Future.wait([
+        http.post(
+          exudateAiUrl,
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({"imageUrl": downloadUrl}),
+        ).timeout(const Duration(seconds: 90)),
+
+        http.post(
+          erythemaAiUrl,
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({"imageUrl": downloadUrl}),
+        ).timeout(const Duration(seconds: 90)),
+
+      ]);
+
+      final exuResponse = results[0];
+      final eryResponse = results[1];
+
       int? detectedExudate;
+      int? detectedErythema;
 
-      if (exudateResponse.statusCode == 200) {
-        final aiData = jsonDecode(exudateResponse.body);
-        print("Exudate AI Success: $aiData");
+      // Parse Exudate Result
+      if (exuResponse.statusCode == 200) {
+        final data = jsonDecode(exuResponse.body);
+        detectedExudate = data['exudate'];
+        print("✅ Exudate Result: $detectedExudate");
+      }
 
-        // Grab the exudate result. It safely ignores erythema.
-        detectedExudate = aiData['exudate'];
+      // Parse Erythema Result
+      if (eryResponse.statusCode == 200) {
+        final data = jsonDecode(eryResponse.body);
+        detectedErythema = data['erthyma'];
+        print("✅ Erythema Result: $detectedErythema");
+      }
 
-        if (detectedExudate == null) {
-          throw("AI analysis returned empty results.");
-        }
-      } else {
-        throw("Exudate Server Error: ${exudateResponse.statusCode}");
+      if (detectedExudate == null ) {
+        throw "detectedExudate failed to return a result.";
+      }
+
+      if (detectedErythema == null) {
+        throw "detectedErythema failed to return a result.";
       }
 
       // -----------------------------------------------------
-      // 3. SAVE TO FIRESTORE
+      // 3. SAVE TO FIRESTORE (Both results combined)
       // -----------------------------------------------------
       final uid = user.uid;
       final whqDocRef = FirebaseFirestore.instance
@@ -132,8 +154,8 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
         "image": {
           "url": downloadUrl,
           "date": FieldValue.serverTimestamp(),
-          "erythema": detectedErythema, // Saves as null for now, which is perfectly safe
-          "exudate": detectedExudate,   // Saves the 0 or 1 from the new server
+          "erythema": detectedErythema, // Now saving the real 0 or 1
+          "exudate": detectedExudate,   // Now saving the real 0 or 1
           "source": source,
         },
         "lastUpdated": FieldValue.serverTimestamp(),
