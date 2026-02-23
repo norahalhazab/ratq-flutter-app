@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/bottom_nav.dart';
 import '../utils/app_colors.dart';
 import 'smart_watch_simulator_screen.dart';
-
+import 'vitals_entry_screen.dart';
 class UploadSuccessScreen extends StatelessWidget {
   const UploadSuccessScreen({super.key});
 
@@ -146,7 +146,12 @@ class UploadSuccessScreen extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const SmartWatchSimulatorScreen(),
+                                  builder: (context) => VitalsEntryScreen(
+                                    args: const VitalsEntryArgs(
+                                      caseId: "tempCase",
+                                      whqResponseId: "tempWhq",
+                                    ),
+                                  ),
                                 ),
                               );
                             },
