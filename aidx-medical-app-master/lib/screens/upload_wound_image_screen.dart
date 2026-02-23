@@ -13,6 +13,8 @@ import 'upload_success_screen.dart';
 import '../widgets/bottom_nav.dart';
 import '../utils/app_colors.dart'; // Assuming you have this file
 
+
+
 class UploadWoundImageScreen extends StatefulWidget {
   const UploadWoundImageScreen({
     super.key,
@@ -165,7 +167,12 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const UploadSuccessScreen()),
+        MaterialPageRoute(
+          builder: (context) => UploadSuccessScreen(
+            caseId: widget.caseId,
+            whqResponseId: widget.whqResponseId,
+          ),
+        ),
       );
 
     } catch (e) {

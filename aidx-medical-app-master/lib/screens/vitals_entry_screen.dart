@@ -123,19 +123,17 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
 
 
   //Saving vitals into WHQ--vitals
-  Future<void> _saveVitals() async {
+  Future<bool> _saveVitals() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) return false;
 
-    // ✅ choose temperature based on source
     double? tempToSave;
 
     if (_tempSource == "watch") {
       if (!_service.isConnected) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Smart Watch not connected")),
-        );
-        return;
+        // بدون SnackBar (عشان ما يطلع شيء)
+        setState(() => _tempError = "Smart Watch not connected");
+        return false;
       }
       tempToSave = _service.temperature;
     } else {
@@ -143,7 +141,7 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
       final err = _validateTemp(tempToSave);
       if (err != null) {
         setState(() => _tempError = err);
-        return;
+        return false;
       }
     }
 
@@ -155,7 +153,7 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
         "heartRate": _service.heartRate,
         "bloodPressure": _service.bloodPressure,
         "fromWatch": _service.isConnected,
-        "tempSource": _tempSource, // "manual" or "watch"
+        "tempSource": _tempSource,
         "capturedAt": FieldValue.serverTimestamp(),
       };
 
@@ -167,11 +165,14 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
           .collection('whqResponses')
           .doc(widget.args.whqResponseId);
 
-
       await whqDocRef.set({
         "vitals": vitalsData,
         "updatedAt": FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      return true;
+    } catch (_) {
+      return false;
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -404,8 +405,10 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
                           _tempError = null;
                         });
 
-                        await _saveVitals();
+                        final success = await _saveVitals();
                         if (!context.mounted) return;
+
+                        if (!success) return; // ✅ لا تنتقل إذا ما انحفظت
 
                         Navigator.pushAndRemoveUntil(
                           context,

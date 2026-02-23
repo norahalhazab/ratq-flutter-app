@@ -6,8 +6,18 @@ import '../widgets/bottom_nav.dart';
 import '../utils/app_colors.dart';
 import 'smart_watch_simulator_screen.dart';
 import 'vitals_entry_screen.dart';
+
+
+
 class UploadSuccessScreen extends StatelessWidget {
-  const UploadSuccessScreen({super.key});
+  const UploadSuccessScreen({
+    super.key,
+    required this.caseId,
+    required this.whqResponseId,
+  });
+
+  final String caseId;
+  final String whqResponseId;
 
   @override
   Widget build(BuildContext context) {
@@ -147,9 +157,10 @@ class UploadSuccessScreen extends StatelessWidget {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => VitalsEntryScreen(
-                                    args: const VitalsEntryArgs(
-                                      caseId: "tempCase",
-                                      whqResponseId: "tempWhq",
+                                    // ❌ لا const هنا
+                                    args: VitalsEntryArgs(
+                                      caseId: caseId,
+                                      whqResponseId: whqResponseId,
                                     ),
                                   ),
                                 ),
