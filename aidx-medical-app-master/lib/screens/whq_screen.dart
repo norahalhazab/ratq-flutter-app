@@ -358,25 +358,22 @@ class _WhqScreenState extends State<WhqScreen> {
                                 : () async {
                               setState(() {
                                 answers[q.id] = _optionValue(q.type, i);
-                                _isNavigating = true;
+                                if (!isLast) {
+                                  _isNavigating = true;
+                                }
                               });
+
+                              if (isLast) return;
 
                               await Future.delayed(
                                 const Duration(milliseconds: 250),
                               );
                               if (!mounted) return;
 
-                              if (!isLast) {
-                                setState(() {
-                                  index++;
-                                  _isNavigating = false;
-                                });
-                              } else {
-                                await _submitAllAnswers(user.uid);
-                                if (mounted) {
-                                  setState(() => _isNavigating = false);
-                                }
-                              }
+                              setState(() {
+                                index++;
+                                _isNavigating = false;
+                              });
                             },
                             borderRadius: BorderRadius.circular(10),
                             child: AnimatedContainer(
