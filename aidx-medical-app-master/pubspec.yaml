@@ -59,6 +59,8 @@ dependencies:
   google_generative_ai: ^0.2.2
   html: ^0.15.4
   sign_in_with_apple: ^6.1.0
+  pdf: ^3.10.0
+  printing: ^5.11.0
 
 
 dev_dependencies:

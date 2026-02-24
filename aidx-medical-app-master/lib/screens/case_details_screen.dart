@@ -12,6 +12,7 @@ import '../utils/app_colors.dart';
 import '../widgets/bottom_nav.dart';
 import '../services/notification_service.dart';
 import 'whq_screen.dart';
+import 'summary_report_screen.dart';
 
 class CaseDetailsScreen extends StatelessWidget {
   const CaseDetailsScreen({
@@ -765,6 +766,16 @@ class CaseDetailsScreen extends StatelessWidget {
                                   ],
                                 ),
 
+                                const SizedBox(height: 12), // Added spacing
+                                _SecondaryActionButton(
+                                  label: "View Summary Report",
+                                  icon: Icons.assignment_outlined,
+                                  onTap: () => Navigator.push(
+                                      stableCtx,
+                                      MaterialPageRoute(builder: (_) => SummaryReportScreen(caseId: caseId))
+                                  ),
+                                ),
+
                                 const SizedBox(height: 10),
                               ],
                             ),
@@ -806,6 +817,41 @@ class CaseDetailsScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SecondaryActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SecondaryActionButton({required this.label, required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: Colors.white.withOpacity(0.5),
+          border: Border.all(color: AppColors.primaryColor.withOpacity(0.4), width: 1.5),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: AppColors.primaryColor),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: GoogleFonts.inter(fontSize: 13.5, fontWeight: FontWeight.w900, color: AppColors.primaryColor),
+            ),
+          ],
+        ),
       ),
     );
   }
