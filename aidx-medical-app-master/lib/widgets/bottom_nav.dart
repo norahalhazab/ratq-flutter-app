@@ -1,8 +1,10 @@
+// bottom_nav.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../screens/Homepage.dart';
 import '../screens/cases_screen.dart';
+import '../screens/create_case_screen.dart';
 import '../screens/alerts_screen.dart';
 import '../screens/settings_screen.dart';
 
@@ -15,6 +17,8 @@ class AppBottomNav extends StatefulWidget {
 
   /// 0 home, 1 cases, 2 new, 3 alerts, 4 settings
   final int currentIndex;
+
+  /// Optional legacy hook. If null, we will navigate to CreateCaseScreen by default.
   final VoidCallback? onNewTap;
 
   @override
@@ -35,11 +39,8 @@ class _AppBottomNavState extends State<AppBottomNav> {
 
   // colors
   static const Color barWhite = Colors.white;
-  static const Color iconColor = Color(0xFF0F172A); // unselected (requested)
+  static const Color iconColor = Color(0xFF0F172A); // unselected
   static const Color outline = Color(0x11000000);
-
-  static const Color blueA = Color(0xFF63A2BF); // glossy base (requested family)
-  static const Color blueB = Color(0xFF3B7691); // deeper blue from your theme
 
   // ✅ hollow icons (outlined)
   static const _tabs = <_TabItem>[
@@ -65,13 +66,20 @@ class _AppBottomNavState extends State<AppBottomNav> {
   }
 
   void _go(int i) {
-    if (i == 2) {
-      widget.onNewTap?.call();
-      return;
-    }
     if (i == _index) return;
 
+    // ✅ Update selected index FIRST so highlight animates smoothly
     setState(() => _index = i);
+
+    // ✅ PLUS behaves as a real tab (smooth highlight + always works)
+    if (i == 2) {
+      // If you still want to run custom logic, keep this (optional):
+      widget.onNewTap?.call();
+
+      // Always navigate to CreateCaseScreen (works from Alerts/Settings too)
+      Navigator.pushReplacement(context, _route(const CreateCaseScreen()));
+      return;
+    }
 
     final page = switch (i) {
       0 => const Homepage(),
@@ -86,7 +94,6 @@ class _AppBottomNavState extends State<AppBottomNav> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ touches the bottom edge (no SafeArea bottom here)
     return Material(
       color: Colors.transparent,
       child: SizedBox(
@@ -126,7 +133,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
                   curve: Curves.easeOutCubic,
                   left: left.clamp(10, w - _pillW - 10),
                   top: top,
-                  child: _GlossySquircle(
+                  child: const _GlossySquircle(
                     width: _pillW,
                     height: _pillH,
                     radius: _pillR,
@@ -147,8 +154,8 @@ class _AppBottomNavState extends State<AppBottomNav> {
                           child: Center(
                             child: AnimatedScale(
                               duration: const Duration(milliseconds: 220),
-                              curve: Curves.easeOutBack,
-                              scale: selected ? 1.06 : 1.0,
+                              curve: Curves.easeOutCubic, // smoother than easeOutBack
+                              scale: selected ? 1.03 : 1.0, // softer scale
                               child: Icon(
                                 _tabs[i].icon,
                                 size: 26,
@@ -192,12 +199,12 @@ class _GlossySquircle extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         child: Stack(
           children: [
-            // base blue gradient (liquid-ish)
+            // base
             Container(
               width: width,
               height: height,
               decoration: BoxDecoration(
-                color: blue, // ✅ بدون gradient
+                color: blue,
                 borderRadius: BorderRadius.circular(radius),
                 boxShadow: const [
                   BoxShadow(
@@ -233,17 +240,20 @@ class _GlossySquircle extends StatelessWidget {
               ),
             ),
 
-            // subtle inner border for “gloss”
+            // subtle inner border
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(radius),
-                  border: Border.all(color: Colors.white.withOpacity(0.28), width: 1),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.28),
+                    width: 1,
+                  ),
                 ),
               ),
             ),
 
-            // tiny blur overlay to make it feel “liquid”
+            // tiny blur overlay
             Positioned.fill(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),

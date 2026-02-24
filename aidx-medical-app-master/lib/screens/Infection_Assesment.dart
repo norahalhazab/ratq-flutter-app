@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'cases_screen.dart';
 import '../utils/app_colors.dart';
 
 class InfectionAssessmentScreen extends StatefulWidget {
@@ -134,7 +134,13 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
                           children: [
                             _IconPillButton(
                               icon: Icons.arrow_back_ios_new_rounded,
-                              onTap: () => Navigator.pop(context),
+                              onTap: () {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const CasesScreen()),
+                                      (route) => false,
+                                );
+                              },
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -164,7 +170,7 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(18, 6, 18, 10),
                         child: Text(
-                          "Combined analysis of all monitoring data",
+                          "",
                           style: GoogleFonts.inter(
                             fontSize: 13.0,
                             fontWeight: FontWeight.w600,
@@ -268,9 +274,6 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
           _asInt(data['lastWhqScore']) ??
           0;
 
-      // Convert raw WHQ score (0..?) into points for finalScore.
-      // ✅ You can change these thresholds to whatever your rubric is.
-      final whqPoints = _whqPointsFromRaw(whqScore);
 
       // -------- 2) Image points (erythema/exudate) --------
       // Supports your screenshot: data['image']['erythema'] = 1, exudate = 1
@@ -290,7 +293,7 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
       final vitalsPoints = _vitalsPointsFromAny(vitals);
 
       // -------- Final score --------
-      final finalScore = whqPoints + imagePoints + vitalsPoints;
+      final finalScore = whqScore + imagePoints + vitalsPoints;
 
       // Write to Firebase (same doc + case summary)
       final batch = FirebaseFirestore.instance.batch();
@@ -301,7 +304,6 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
         'assessment': {
           'computedAt': FieldValue.serverTimestamp(),
           'whqRaw': whqScore,
-          'whqPoints': whqPoints,
           'imagePoints': imagePoints,
           'vitalsPoints': vitalsPoints,
           'threshold': widget.highThreshold,
@@ -328,14 +330,7 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
 
   // ---------------- Scoring rules (edit these) ----------------
 
-  /// Example mapping:
-  /// raw WHQ 0..32 -> points 0..3 (so it combines nicely with vitals+image)
-  int _whqPointsFromRaw(int raw) {
-    if (raw <= 2) return 0;
-    if (raw <= 6) return 1;
-    if (raw <= 10) return 2;
-    return 3;
-  }
+
 
   /// Accepts vitals map that may contain either:
   /// - flags: { fever:1, tachycardia:1, hypotension:0 }
@@ -343,30 +338,16 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
   int _vitalsPointsFromAny(Map<String, dynamic>? v) {
     if (v == null) return 0;
 
-    // If you saved as flags (0/1)
-    final feverFlag = _asInt(v['fever']);
-    final tachyFlag = _asInt(v['tachycardia']);
-    final hypoFlag = _asInt(v['hypotension']);
+    final temp = _asDouble(v['temperature']);
 
-    if (feverFlag != null || tachyFlag != null || hypoFlag != null) {
-      int p = 0;
-      if (feverFlag == 1) p++;
-      if (tachyFlag == 1) p++;
-      if (hypoFlag == 1) p++;
-      return p; // 0..3
+    if (temp == null) return 0;
+
+    // 🔥 Your rule
+    if (temp >= 38.5) {
+      return 1;
     }
 
-    // Otherwise assume raw numbers and compute flags here
-    final temp = _asDouble(v['temperature']);
-    final hr = _asInt(v['heartRate']);
-    final sys = _asInt(v['systolic']) ?? _tryParseBpSys(v['bloodPressure']);
-    // You can add diastolic if you want.
-
-    int p = 0;
-    if (temp != null && temp >= 38.0) p++; // fever
-    if (hr != null && hr >= 100) p++; // tachy
-    if (sys != null && sys <= 90) p++; // hypotension-ish
-    return p;
+    return 0;
   }
 
   static int? _tryParseBpSys(dynamic bp) {
@@ -409,14 +390,12 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
   static List<String> _highRecs() => const [
     "Contact your healthcare provider soon",
     "Monitor your wound daily",
-    "Keep the wound clean and dry",
     "Watch for pain, swelling, or discharge",
     "Avoid home remedies without medical advice",
   ];
 
   static List<String> _lowRecs() => const [
     "Continue daily monitoring",
-    "Keep the wound clean and dry",
     "Follow your post-operative care instructions",
     "If symptoms appear (pain, swelling, fever), contact your doctor",
   ];

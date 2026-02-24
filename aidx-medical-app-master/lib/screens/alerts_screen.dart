@@ -1,3 +1,4 @@
+// alerts_screen.dart
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
@@ -40,8 +41,9 @@ class CaseWhqReminder {
       caseId: (j['caseId'] ?? '').toString(),
       caseTitle: (j['caseTitle'] ?? 'Case').toString(),
       hour: (j['hour'] is int) ? j['hour'] as int : int.tryParse('${j['hour']}') ?? 20,
-      minute:
-      (j['minute'] is int) ? j['minute'] as int : int.tryParse('${j['minute']}') ?? 0,
+      minute: (j['minute'] is int)
+          ? j['minute'] as int
+          : int.tryParse('${j['minute']}') ?? 0,
       enabled: (j['enabled'] as bool?) ?? true,
     );
   }
@@ -156,7 +158,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
       for (final d in snap.docs) {
         final data = d.data();
-
         final caseTitle = _readCaseTitle(data);
 
         // score priority: finalScore else infectionScore
@@ -164,7 +165,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
         final infectionScore = _readInt(data['infectionScore']);
         final score = (finalScore != null && finalScore > 0) ? finalScore : (infectionScore ?? 0);
 
-        // threshold
+        // threshold (your rule: >=4 is sign)
         if (score < 4) continue;
 
         final dt = _readDate(data['lastUpdated']) ??
@@ -175,15 +176,16 @@ class _AlertsScreenState extends State<AlertsScreen> {
         final key = 'infection:${d.id}';
         if (_dismissedKeys.contains(key)) continue;
 
-        final infectionText = (score >= 6) ? "High sign of infection" : "Warning sign of infection";
+        final infectionText = (score >= 6)
+            ? "High sign of infection"
+            : "Warning sign of infection";
 
         infectionAlerts.add(
           _AlertItem(
             keyId: key,
             type: _AlertType.infection,
             title: "Infection Risk Detected",
-            subtitle: "Case: $caseTitle • Please seek medical advice promptly.",
-            actionText: "Go to $caseTitle",
+            subtitle: 'Case: $caseTitle • Please seek medical advice promptly.',
             date: dt,
             payload: d.id, // caseId
             caseTitle: caseTitle,
@@ -221,11 +223,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
     final remindersSorted = [..._reminders]
       ..sort((a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
 
+    // insert in reverse so earlier time stays closer to top
     for (final r in remindersSorted.reversed) {
       final key = 'whqcase:${r.id}:$today';
       if (_dismissedKeys.contains(key)) continue;
 
-      // Insert at top (reverse loop keeps sorted order)
       list.insert(
         0,
         _AlertItem(
@@ -233,9 +235,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
           type: _AlertType.whq,
           title: "Daily WHQ Reminder",
           subtitle: "Case: ${r.caseTitle}",
-          actionText: "Open ${r.caseTitle}",
           date: DateTime.now(),
-          payload: r.caseId, // ✅ caseId (so tap opens case details)
+          payload: r.caseId, // ✅ caseId
           caseTitle: r.caseTitle,
           score: 0,
           severityText: "Scheduled at ${r.time.format(context)}",
@@ -396,7 +397,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   // ---------------- Helpers ----------------
 
   String _readCaseTitle(Map<String, dynamic> data) {
-    // same priority idea as your CaseDetailsScreen
+    // same priority as CaseDetails
     final raw = (data['caseName'] ?? data['title'] ?? '').toString().trim();
     if (raw.isNotEmpty) return raw;
 
@@ -492,7 +493,6 @@ class _AlertItem {
   final _AlertType type;
   final String title;
   final String subtitle;
-  final String actionText;
   final DateTime date;
   final String payload; // ✅ ALWAYS caseId now
   final String caseTitle;
@@ -504,7 +504,6 @@ class _AlertItem {
     required this.type,
     required this.title,
     required this.subtitle,
-    required this.actionText,
     required this.date,
     required this.payload,
     required this.caseTitle,
@@ -554,19 +553,40 @@ class _NotificationCard extends StatelessWidget {
           children: [
             _IconBadge(tint: iconTint, icon: icon),
             const SizedBox(width: 12),
+
+            // main content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.title,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
-                    ),
+                  // title row + date
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        dateText,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
+
                   const SizedBox(height: 4),
+
                   Text(
                     item.subtitle,
                     style: GoogleFonts.inter(
@@ -576,50 +596,53 @@ class _NotificationCard extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
+
                   const SizedBox(height: 10),
+
+                  // ✅ chip alone
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        color: chipColor.withOpacity(0.10),
+                        border: Border.all(color: chipColor.withOpacity(0.22)),
+                      ),
+                      child: Text(
+                        item.severityText,
+                        style: GoogleFonts.inter(
+                          fontSize: 11.6,
+                          fontWeight: FontWeight.w900,
+                          color: chipColor,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ✅ action line UNDER the chip (full, clear)
                   Row(
                     children: [
+                      const Icon(Icons.arrow_forward_rounded,
+                          size: 18, color: AppColors.primaryColor),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          item.actionText,
+                          'Go to case "${item.caseTitle}"',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
-                            fontSize: 12.6,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primaryColor,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          color: chipColor.withOpacity(0.10),
-                          border: Border.all(color: chipColor.withOpacity(0.22)),
-                        ),
-                        child: Text(
-                          item.severityText,
-                          style: GoogleFonts.inter(
-                            fontSize: 11.6,
+                            fontSize: 12.8,
                             fontWeight: FontWeight.w900,
-                            color: chipColor,
+                            color: AppColors.primaryColor,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              dateText,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textMuted,
               ),
             ),
           ],

@@ -1,3 +1,4 @@
+// create_case_screen.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../widgets/bottom_nav.dart';
 import 'case_created_start_screen.dart';
+import 'cases_screen.dart';
 
 class CreateCaseScreen extends StatefulWidget {
   const CreateCaseScreen({super.key});
@@ -18,7 +20,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
   DateTime? _surgeryDate;
   bool _loading = false;
 
-  // ✅ NEW: Case name controller
+  // ✅ Case name controller
   final TextEditingController _caseNameCtrl = TextEditingController();
 
   // Brand
@@ -40,6 +42,14 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
         content: Text(msg),
         behavior: SnackBarBehavior.floating,
       ),
+    );
+  }
+
+  void _goToCases() {
+    // ✅ Go to cases screen (replacement so nav state stays clean)
+    Navigator.pushReplacement(
+      context,
+      _route(const CasesScreen()),
     );
   }
 
@@ -121,8 +131,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
       final nextNo = await _getNextCaseNumber(user.uid);
 
       // ✅ Final saved name:
-      // - If user typed a name => use it
-      // - Otherwise default to "Wound <number>"
       final finalName = name.isNotEmpty ? name : "Wound $nextNo";
 
       final docRef = await FirebaseFirestore.instance
@@ -130,14 +138,14 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
           .doc(user.uid)
           .collection('cases')
           .add({
-        // ✅ store BOTH keys for safety (your other file had "caseNo" sometimes)
+        // store both keys for safety
         'caseNumber': nextNo,
         'caseNo': nextNo,
 
-        // ✅ NEW: case name field
+        // case name
         'caseName': finalName,
 
-        // keep title for backward compatibility
+        // backward compatibility
         'title': finalName,
 
         'status': 'active',
@@ -174,7 +182,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
       backgroundColor: Colors.white,
       bottomNavigationBar: AppBottomNav(
         currentIndex: 2,
-        onNewTap: () {}, // you're already here
+        onNewTap: () {}, // already here
       ),
       body: Stack(
         children: [
@@ -185,17 +193,45 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ✅ Top bar with back arrow -> CasesScreen
                   SizedBox(
                     height: 44,
-                    child: Center(
-                      child: Text(
-                        "Create Wound Case",
-                        style: GoogleFonts.inter(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                          color: titleColor.withOpacity(0.85),
+                    child: Row(
+                      children: [
+                        InkWell(
+                          onTap: _goToCases,
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.75),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: primary.withOpacity(0.18)),
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              size: 18,
+                              color: titleColor,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              "Create Wound Case",
+                              style: GoogleFonts.inter(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w700,
+                                color: titleColor.withOpacity(0.85),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // keep right side balanced
+                        const SizedBox(width: 40),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -233,7 +269,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
                   const SizedBox(height: 16),
 
-                  // ✅ NEW: Case Name
+                  // Case name
                   Padding(
                     padding: const EdgeInsets.only(left: 6, bottom: 8),
                     child: Text(
@@ -360,6 +396,20 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 /* ---------------- helpers ---------------- */
 
 String _two(int n) => n.toString().padLeft(2, '0');
+
+/* ✅ same transition style used in your bottom nav */
+PageRouteBuilder _route(Widget page) {
+  return PageRouteBuilder(
+    transitionDuration: const Duration(milliseconds: 180),
+    pageBuilder: (_, __, ___) => page,
+    transitionsBuilder: (_, a, __, child) {
+      return FadeTransition(
+        opacity: CurvedAnimation(parent: a, curve: Curves.easeOut),
+        child: child,
+      );
+    },
+  );
+}
 
 /* ---------------- background ---------------- */
 
@@ -708,8 +758,7 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                 TextButton(
                   onPressed: () => setState(() => _expanded = !_expanded),
                   style: TextButton.styleFrom(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     minimumSize: Size.zero,
                     foregroundColor: primary,
@@ -750,30 +799,17 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    _FaqLine(
-                      icon: Icons.quiz_outlined,
-                      text: "Complete the WHQ questionnaire",
-                    ),
+                    _FaqLine(icon: Icons.quiz_outlined, text: "Complete the WHQ questionnaire"),
                     SizedBox(height: 8),
-                    _FaqLine(
-                      icon: Icons.photo_camera_outlined,
-                      text: "Capture wound images",
-                    ),
+                    _FaqLine(icon: Icons.photo_camera_outlined, text: "Capture wound images"),
                     SizedBox(height: 8),
-                    _FaqLine(
-                      icon: Icons.thermostat_outlined,
-                      text: "Record your temperature",
-                    ),
+                    _FaqLine(icon: Icons.thermostat_outlined, text: "Record your temperature"),
                     SizedBox(height: 8),
-                    _FaqLine(
-                      icon: Icons.monitor_heart_outlined,
-                      text: "Get infection risk score",
-                    ),
+                    _FaqLine(icon: Icons.monitor_heart_outlined, text: "Get infection risk score"),
                   ],
                 ),
               ),
-              crossFadeState:
-              _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
               duration: const Duration(milliseconds: 220),
               sizeCurve: Curves.easeOutCubic,
             ),

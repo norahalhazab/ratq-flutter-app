@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 import '../services/smart_watch_simulator_service.dart';
 import '../widgets/bottom_nav.dart';
-
+import 'Infection_Assesment.dart';
 import 'cases_screen.dart';
 
 
@@ -410,12 +410,14 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
 
                         if (!success) return; // ✅ لا تنتقل إذا ما انحفظت
 
-                        Navigator.pushAndRemoveUntil(
+                        Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const CasesScreen(),
+                            builder: (_) => InfectionAssessmentScreen(
+                              caseId: widget.args.caseId,
+                              whqResponseId: widget.args.whqResponseId,
+                            ),
                           ),
-                              (route) => false,
                         );
                       },
                       style: ElevatedButton.styleFrom(
