@@ -6,11 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'profile_screen.dart';
 import '../utils/app_colors.dart';
 import '../widgets/bottom_nav.dart';
-import 'create_case_screen.dart';
-import 'case_details_screen.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -44,8 +42,12 @@ class _HomepageState extends State<Homepage> {
       );
     }
 
-    final userDocStream =
-    FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots();
+    final userDocStream = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('profile')
+        .doc('personal')
+        .snapshots();
 
     final Query<Map<String, dynamic>> casesQuery = FirebaseFirestore.instance
         .collection('users')
@@ -55,13 +57,10 @@ class _HomepageState extends State<Homepage> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-
-      // ✅ No plus button (do NOT pass onNewTap)
       bottomNavigationBar: AppBottomNav(
         currentIndex: 0,
-        onNewTap: () {}, // if your AppBottomNav requires it, keep it but it won’t be used
+        onNewTap: () {}, // keep if your bottom nav requires it
       ),
-
       body: Stack(
         children: [
           const _BlueGlassyBackground(),
@@ -74,6 +73,10 @@ class _HomepageState extends State<Homepage> {
                   fallback: user.displayName ?? "User",
                 );
 
+                final profileData = userSnap.data?.data();
+                final profilePhoto =
+                profileData?['photo']?.toString().trim();
+
                 return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: casesQuery.snapshots(),
                   builder: (context, casesSnap) {
@@ -82,7 +85,8 @@ class _HomepageState extends State<Homepage> {
                     // Ensure selected case
                     if (docs.isNotEmpty) {
                       final ids = docs.map((d) => d.id).toList();
-                      if (_selectedCaseId == null || !ids.contains(_selectedCaseId)) {
+                      if (_selectedCaseId == null ||
+                          !ids.contains(_selectedCaseId)) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (!mounted) return;
                           setState(() => _selectedCaseId = ids.first);
@@ -104,7 +108,8 @@ class _HomepageState extends State<Homepage> {
 
                     final selectedData = selectedDoc?.data();
                     final status =
-                    ((selectedData?['status'] as String?) ?? 'active').toLowerCase();
+                    ((selectedData?['status'] as String?) ?? 'active')
+                        .toLowerCase();
                     final isClosed = status == 'closed';
 
                     final startValue = selectedData == null
@@ -116,7 +121,13 @@ class _HomepageState extends State<Homepage> {
                     final daysSince = _daysSince(startValue);
                     final caseTitle = selectedDoc == null
                         ? "Select case"
-                        : _caseTitleFromData(selectedData!, fallback: "Untitled wound");
+                        : _caseTitleFromData(selectedData!,
+                        fallback: "Untitled wound");
+
+                    final avatarLetter = (userName.isNotEmpty
+                        ? userName.trim().substring(0, 1)
+                        : "U")
+                        .toUpperCase();
 
                     return CustomScrollView(
                       slivers: [
@@ -126,21 +137,31 @@ class _HomepageState extends State<Homepage> {
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                             child: Row(
                               children: [
-                                _AvatarButton(
-                                  letter: (userName.isNotEmpty
-                                      ? userName.characters.first
-                                      : "U")
-                                      .toUpperCase(),
+                                GestureDetector(
+                                  onTap: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const PersonalInformationScreen(),
+                                      ),
+                                    );
+                                    setState(() {}); // refresh after returning
+                                  },
+                                  child: _AvatarButton(
+                                    letter: avatarLetter,
+                                    imageUrl: profilePhoto,
+                                  ),
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "Hello",
+                                        "Hello, welcome back",
                                         style: GoogleFonts.inter(
-                                          fontSize: 12.5,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.w800,
                                           color: AppColors.textSecondary,
                                         ),
@@ -159,35 +180,6 @@ class _HomepageState extends State<Homepage> {
                                     ],
                                   ),
                                 ),
-                                _WhitePillButton(
-                                  onTap: () {
-                                    if (selectedDoc == null) return;
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => CaseDetailsScreen(
-                                          caseId: selectedDoc!.id,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.folder_open_rounded,
-                                          color: AppColors.primaryColor, size: 18),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        "Open case",
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12.6,
-                                          fontWeight: FontWeight.w900,
-                                          color: AppColors.primaryColor,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
                               ],
                             ),
                           ),
@@ -201,7 +193,7 @@ class _HomepageState extends State<Homepage> {
                               child: Text(
                                 "Dashboard",
                                 style: GoogleFonts.dmSans(
-                                  fontSize: 30,
+                                  fontSize: 28,
                                   fontWeight: FontWeight.w900,
                                   color: AppColors.textPrimary,
                                   height: 1.0,
@@ -220,7 +212,9 @@ class _HomepageState extends State<Homepage> {
                                 Expanded(
                                   child: _CasePickerPill(
                                     enabled: docs.isNotEmpty,
-                                    title: docs.isEmpty ? "No cases yet" : caseTitle,
+                                    title: docs.isEmpty
+                                        ? "No cases yet"
+                                        : caseTitle,
                                     subtitle: docs.isEmpty
                                         ? "Create a case to start"
                                         : (isClosed ? "Closed" : "Active"),
@@ -230,8 +224,8 @@ class _HomepageState extends State<Homepage> {
                                       context: context,
                                       cases: docs,
                                       selectedId: _selectedCaseId,
-                                      onSelect: (id) =>
-                                          setState(() => _selectedCaseId = id),
+                                      onSelect: (id) => setState(
+                                              () => _selectedCaseId = id),
                                     ),
                                   ),
                                 ),
@@ -246,8 +240,8 @@ class _HomepageState extends State<Homepage> {
                             padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
                             child: selectedDoc == null
                                 ? _GlassSectionCard(
-                              title: "Your case",
-                              subtitle: "Choose a case to view your dashboard.",
+                              title: "Your Wounds",
+
                               child: const SizedBox(height: 10),
                             )
                                 : FutureBuilder<_DashboardData>(
@@ -261,25 +255,36 @@ class _HomepageState extends State<Homepage> {
                                 final whqCount = data?.whqCount ?? 0;
 
                                 final latest = data?.latestVitals;
-                                final hrText =
-                                latest?.heartRate == null ? "---" : "${latest!.heartRate}";
-                                final tempText = latest?.temperature == null
+                                final hrText = latest?.heartRate == null
                                     ? "---"
-                                    : latest!.temperature!.toStringAsFixed(1);
-                                final bpText = (latest?.bpSys != null && latest?.bpDia != null)
+                                    : "${latest!.heartRate}";
+                                final tempText =
+                                latest?.temperature == null
+                                    ? "---"
+                                    : latest!.temperature!
+                                    .toStringAsFixed(1);
+
+                                final bpText = (latest?.bpSys != null &&
+                                    latest?.bpDia != null)
                                     ? "${latest!.bpSys!.round()}/${latest.bpDia!.round()}"
-                                    : (latest?.bloodPressureText?.isNotEmpty == true
+                                    : (latest?.bloodPressureText
+                                    ?.isNotEmpty ==
+                                    true
                                     ? latest!.bloodPressureText!
                                     : "---/---");
 
-                                final infectionLabel = data?.latestAssessmentLabel ?? "No data yet";
-                                final isHigh = infectionLabel.toLowerCase().contains('high');
-                                final infectionTint =
-                                isHigh ? AppColors.errorColor : AppColors.successColor;
+                                final infectionLabel =
+                                    data?.latestAssessmentLabel ??
+                                        "No data yet";
+                                final isHigh = infectionLabel
+                                    .toLowerCase()
+                                    .contains('high');
+                                final infectionTint = isHigh
+                                    ? AppColors.errorColor
+                                    : AppColors.successColor;
 
                                 return Column(
                                   children: [
-                                    // ✅ Top summary (days since started + WHQ answered + infection assessment)
                                     _TopSummaryCard(
                                       title: caseTitle,
                                       isClosed: isClosed,
@@ -287,74 +292,42 @@ class _HomepageState extends State<Homepage> {
                                       whqCount: whqCount,
                                       infectionLabel: infectionLabel,
                                       infectionTint: infectionTint,
-                                      startDateText: _formatDate(startValue),
+                                      startDateText:
+                                      _formatDate(startValue),
                                     ),
                                     const SizedBox(height: 12),
 
-                                    // ✅ Latest vitals (from latest WHQ vitals)
                                     _GlassSectionCard(
                                       title: "Latest vitals",
-                                      subtitle: "Based on your most recent daily check.",
                                       child: Column(
                                         children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: _MetricGlassCard(
-                                                  label: "Heart\nRate",
-                                                  value: hrText,
-                                                  unit: "bpm",
-                                                  badgeText: latest == null
-                                                      ? "Not available"
-                                                      : _timeAgoShort(latest.createdAt),
-                                                  icon: Icons.favorite_border,
-                                                  tint: AppColors.errorColor,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: _MetricGlassCard(
-                                                  label: "Blood\nPressure",
-                                                  value: bpText,
-                                                  unit: "mmHg",
-                                                  badgeText: latest == null
-                                                      ? "Not available"
-                                                      : _timeAgoShort(latest.createdAt),
-                                                  icon: Icons.water_drop_outlined,
-                                                  tint: AppColors.secondaryColor,
-                                                ),
-                                              ),
-                                            ],
+                                          _MetricGlassCard(
+                                            label: "Heart Rate",
+                                            value: hrText,
+                                            unit: "bpm",
+                                            badgeText: "", // or keep if you didn't remove badge UI
+                                            icon: Icons.favorite_border,
+                                            tint: AppColors.errorColor,
                                           ),
                                           const SizedBox(height: 12),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: _MetricGlassCard(
-                                                  label: "Temperature",
-                                                  value: tempText,
-                                                  unit: "°C",
-                                                  badgeText: latest == null
-                                                      ? "Not available"
-                                                      : _timeAgoShort(latest.createdAt),
-                                                  icon: Icons.thermostat_outlined,
-                                                  tint: AppColors.warningColor,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: _MetricGlassCard(
-                                                  label: "Infection\nAssessment",
-                                                  value: infectionLabel,
-                                                  unit: "",
-                                                  badgeText: (data == null || data.totalAssessments == 0)
-                                                      ? "No checks yet"
-                                                      : (isHigh ? "High sign" : "No sign"),
-                                                  icon: Icons.health_and_safety_outlined,
-                                                  tint: infectionTint,
-                                                ),
-                                              ),
-                                            ],
+
+                                          _MetricGlassCard(
+                                            label: "Blood Pressure",
+                                            value: bpText,
+                                            unit: "mmHg",
+                                            badgeText: "",
+                                            icon: Icons.water_drop_outlined,
+                                            tint: AppColors.secondaryColor,
+                                          ),
+                                          const SizedBox(height: 12),
+
+                                          _MetricGlassCard(
+                                            label: "Temperature",
+                                            value: tempText,
+                                            unit: "°C",
+                                            badgeText: "",
+                                            icon: Icons.thermostat_outlined,
+                                            tint: AppColors.warningColor,
                                           ),
                                         ],
                                       ),
@@ -362,13 +335,10 @@ class _HomepageState extends State<Homepage> {
 
                                     const SizedBox(height: 12),
 
-                                    // ✅ Infection counts (High vs Low from WHQ assessment.result)
                                     _GlassSectionCard(
                                       title: "Infection summary",
-                                      subtitle: (data == null || data.totalAssessments == 0)
-                                          ? "No daily checks yet."
-                                          : "From your daily checks (High / Low).",
-                                      child: (data == null || data.totalAssessments == 0)
+                                      child: (data == null ||
+                                          data.totalAssessments == 0)
                                           ? const SizedBox(height: 8)
                                           : _InfectionDonutCard(
                                         high: data.highCount,
@@ -378,52 +348,6 @@ class _HomepageState extends State<Homepage> {
 
                                     const SizedBox(height: 12),
 
-                                    // ✅ Charts from WHQ vitals history (not real-time)
-                                    _GlassSectionCard(
-                                      title: "Vitals overview",
-                                      subtitle: "Easy charts from your saved daily checks.",
-                                      child: Column(
-                                        children: [
-                                          _VitalsChartCard(
-                                            title: "Heart rate",
-                                            unitRight: "bpm",
-                                            valuesA: data?.hrSeries ?? const [],
-                                            valuesB: const [],
-                                            colorA: AppColors.errorColor,
-                                            colorB: AppColors.secondaryColor,
-                                            labelA: "HR",
-                                            labelB: "",
-                                            emptyHint: "No heart-rate data yet",
-                                          ),
-                                          const SizedBox(height: 12),
-                                          _VitalsChartCard(
-                                            title: "Temperature",
-                                            unitRight: "°C",
-                                            valuesA: data?.tempSeries ?? const [],
-                                            valuesB: const [],
-                                            colorA: AppColors.warningColor,
-                                            colorB: AppColors.secondaryColor,
-                                            labelA: "Temp",
-                                            labelB: "",
-                                            emptyHint: "No temperature data yet",
-                                          ),
-                                          const SizedBox(height: 12),
-                                          _VitalsChartCard(
-                                            title: "Blood pressure",
-                                            unitRight: "mmHg",
-                                            valuesA: data?.bpSysSeries ?? const [],
-                                            valuesB: data?.bpDiaSeries ?? const [],
-                                            colorA: AppColors.primaryColor,
-                                            colorB: AppColors.secondaryColor,
-                                            labelA: "SYS",
-                                            labelB: "DIA",
-                                            emptyHint: "No blood-pressure data yet",
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 96),
                                   ],
                                 );
                               },
@@ -554,14 +478,7 @@ class _HomepageState extends State<Homepage> {
                                       ),
                                     ),
                                     const SizedBox(height: 2),
-                                    Text(
-                                      "Start: ${_formatDate(data['startDate'] ?? data['createdAt'] ?? data['surgeryDate'])}",
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12.2,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
+
                                   ],
                                 ),
                               ),
@@ -600,7 +517,6 @@ class _HomepageState extends State<Homepage> {
         .collection('cases')
         .doc(caseId);
 
-    // Collections candidates for WHQ logs
     final candidates = <CollectionReference<Map<String, dynamic>>>[
       base.collection('whqResponses'),
       base.collection('whq'),
@@ -611,42 +527,34 @@ class _HomepageState extends State<Homepage> {
 
     for (final col in candidates) {
       try {
-        // try createdAt first
-        whqSnap = await col.orderBy('createdAt', descending: true).limit(30).get();
+        whqSnap = await col.orderBy('createdAt', descending: true).limit(60).get();
         break;
       } catch (_) {
         try {
-          // sometimes date field differs
-          whqSnap = await col.orderBy('date', descending: true).limit(30).get();
+          whqSnap = await col.orderBy('date', descending: true).limit(60).get();
           break;
-        } catch (_) {
-          // try next
-        }
+        } catch (_) {}
       }
     }
 
     final docs = whqSnap?.docs ?? [];
-
-    // Count
     final whqCount = await _countWhq(base);
 
-    // Latest vitals + latest assessment
     _VitalsPoint? latestVitals;
     String latestAssessment = "No data yet";
-
-    // Series
-    final hr = <double>[];
-    final temp = <double>[];
-    final sys = <double>[];
-    final dia = <double>[];
 
     int highCount = 0;
     int lowCount = 0;
 
+    int highTempCount = 0;
+    int totalTempChecks = 0;
+
+    final List<String> lastResults = [];
+    final List<DateTime> checkDates = [];
+
     for (int i = 0; i < docs.length; i++) {
       final d = docs[i].data();
 
-      // vitals is inside WHQ response
       final vitals = _asMap(d['vitals']);
       final createdAt = _toDate(d['createdAt'] ?? d['date'] ?? d['timestamp']);
 
@@ -657,7 +565,15 @@ class _HomepageState extends State<Homepage> {
       final bpSys = _asDouble(vitals?['bpSys'] ?? vitals?['systolic']);
       final bpDia = _asDouble(vitals?['bpDia'] ?? vitals?['diastolic']);
 
-      // parse "120/80" if needed
+      if (createdAt != null) checkDates.add(createdAt);
+
+      // High temperature analysis (>= 37.8)
+      if (temperature != null && temperature > 0) {
+        totalTempChecks++;
+        if (temperature >= 37.8) highTempCount++;
+      }
+
+      // Parse "120/80" fallback
       double? parsedSys;
       double? parsedDia;
       if (bpText.contains('/')) {
@@ -668,10 +584,6 @@ class _HomepageState extends State<Homepage> {
         }
       }
 
-      // add series in chronological order later (we’re iterating newest->older)
-      if (heartRate != null && heartRate > 0) hr.add(heartRate.toDouble());
-      if (temperature != null && temperature > 0) temp.add(temperature);
-
       final sVal = (bpSys != null && bpSys > 0)
           ? bpSys
           : (parsedSys != null && parsedSys > 0 ? parsedSys : null);
@@ -679,22 +591,20 @@ class _HomepageState extends State<Homepage> {
           ? bpDia
           : (parsedDia != null && parsedDia > 0 ? parsedDia : null);
 
-      if (sVal != null && dVal != null) {
-        sys.add(sVal);
-        dia.add(dVal);
-      } else {
-        // keep alignment (optional) by skipping if missing
-      }
-
-      // assessment.result == "High" or "low"
       final assessment = _asMap(d['assessment']) ?? _asMap(d['assessmentResult']);
-      final resultRaw = (assessment?['result'] ?? d['result'] ?? d['assessmentResult']).toString().trim();
+      final resultRaw =
+      (assessment?['result'] ?? d['result'] ?? d['assessmentResult'])
+          .toString()
+          .trim();
       final result = resultRaw.toLowerCase();
 
       if (result == 'high') highCount++;
       if (result == 'low') lowCount++;
 
-      // latest (first doc, because newest)
+      if (result == 'high' || result == 'low') {
+        lastResults.add(result); // newest -> older
+      }
+
       if (i == 0) {
         latestVitals = _VitalsPoint(
           createdAt: createdAt,
@@ -711,11 +621,32 @@ class _HomepageState extends State<Homepage> {
       }
     }
 
-    // reverse lists so charts are oldest->newest (nice)
-    final hrSeries = hr.reversed.toList();
-    final tempSeries = temp.reversed.toList();
-    final bpSysSeries = sys.reversed.toList();
-    final bpDiaSeries = dia.reversed.toList();
+    // Streak calculation (consecutive daily checks) + ignore same-day duplicates
+    int streak = 0;
+    checkDates.sort((a, b) => b.compareTo(a)); // newest first
+    DateTime? prevDay;
+
+    for (final dt in checkDates) {
+      final day = DateTime(dt.year, dt.month, dt.day);
+
+      if (prevDay == null) {
+        streak = 1;
+        prevDay = day;
+        continue;
+      }
+
+      final diff = prevDay!.difference(day).inDays;
+
+      if (diff == 0) {
+        // duplicate same day -> ignore
+        continue;
+      } else if (diff == 1) {
+        streak++;
+        prevDay = day;
+      } else {
+        break;
+      }
+    }
 
     final totalAssess = highCount + lowCount;
 
@@ -723,13 +654,13 @@ class _HomepageState extends State<Homepage> {
       whqCount: whqCount,
       latestVitals: latestVitals,
       latestAssessmentLabel: latestAssessment,
-      hrSeries: hrSeries,
-      tempSeries: tempSeries,
-      bpSysSeries: bpSysSeries,
-      bpDiaSeries: bpDiaSeries,
       highCount: highCount,
       lowCount: lowCount,
       totalAssessments: totalAssess,
+      highTempCount: highTempCount,
+      totalTempChecks: totalTempChecks,
+      checkStreak: streak,
+      lastResults: lastResults.take(3).toList(),
     );
   }
 
@@ -737,6 +668,7 @@ class _HomepageState extends State<Homepage> {
     final q1 = base.collection('whq');
     final q2 = base.collection('whqResponses');
     final q3 = base.collection('whq_logs');
+
     try {
       final a = await q2.get();
       if (a.size > 0) return a.size;
@@ -749,6 +681,7 @@ class _HomepageState extends State<Homepage> {
       final a = await q3.get();
       return a.size;
     } catch (_) {}
+
     return 0;
   }
 }
@@ -761,26 +694,26 @@ class _DashboardData {
   final _VitalsPoint? latestVitals;
   final String latestAssessmentLabel;
 
-  final List<double> hrSeries;
-  final List<double> tempSeries;
-  final List<double> bpSysSeries;
-  final List<double> bpDiaSeries;
-
   final int highCount;
   final int lowCount;
   final int totalAssessments;
+
+  final int highTempCount;
+  final int totalTempChecks;
+  final int checkStreak;
+  final List<String> lastResults;
 
   _DashboardData({
     required this.whqCount,
     required this.latestVitals,
     required this.latestAssessmentLabel,
-    required this.hrSeries,
-    required this.tempSeries,
-    required this.bpSysSeries,
-    required this.bpDiaSeries,
     required this.highCount,
     required this.lowCount,
     required this.totalAssessments,
+    required this.highTempCount,
+    required this.totalTempChecks,
+    required this.checkStreak,
+    required this.lastResults,
   });
 }
 
@@ -861,27 +794,16 @@ class _TopSummaryCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.dmSans(
-                        fontSize: 18,
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
                         color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      "Start date: $startDateText",
-                      style: GoogleFonts.inter(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
                   ],
                 ),
               ),
-              _StatusChip(
-                text: isClosed ? "Closed" : "Active",
-                color: statusColor,
-              ),
+              _StatusChip(text: isClosed ? "Closed" : "Active", color: statusColor),
             ],
           ),
           const SizedBox(height: 12),
@@ -915,10 +837,7 @@ class _TopSummaryCard extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          _AssessmentRow(
-            label: infectionLabel,
-            tint: infectionTint,
-          ),
+          _AssessmentRow(label: infectionLabel, tint: infectionTint),
         ],
       ),
     );
@@ -961,7 +880,7 @@ class _TopSummaryCard extends StatelessWidget {
                   child: Text(
                     "OK",
                     style: GoogleFonts.inter(
-                      fontSize: 12.6,
+                      fontSize: 14,
                       fontWeight: FontWeight.w900,
                       color: AppColors.primaryColor,
                     ),
@@ -1011,7 +930,7 @@ class _BigNumberTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
-                fontSize: 12.5,
+                fontSize: 14,
                 fontWeight: FontWeight.w900,
                 color: AppColors.textSecondary,
               ),
@@ -1023,7 +942,7 @@ class _BigNumberTile extends StatelessWidget {
                 Text(
                   value,
                   style: GoogleFonts.dmSans(
-                    fontSize: 26,
+                    fontSize: 20,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
                   ),
@@ -1034,32 +953,13 @@ class _BigNumberTile extends StatelessWidget {
                   child: Text(
                     suffix,
                     style: GoogleFonts.inter(
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textMuted,
                     ),
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                color: tint.withOpacity(0.10),
-                border: Border.all(color: tint.withOpacity(0.18)),
-              ),
-              child: Text(
-                onTap == null ? "Overview" : "Tap for details",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  fontSize: 11.4,
-                  fontWeight: FontWeight.w900,
-                  color: tint,
-                ),
-              ),
             ),
           ],
         ),
@@ -1080,6 +980,7 @@ class _AssessmentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pillText = label.toLowerCase().contains('high') ? "High sign" : "No sign";
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -1112,7 +1013,7 @@ class _AssessmentRow extends StatelessWidget {
             child: Text(
               pillText,
               style: GoogleFonts.inter(
-                fontSize: 11.8,
+                fontSize: 14,
                 fontWeight: FontWeight.w900,
                 color: tint,
               ),
@@ -1174,7 +1075,7 @@ class _InfectionDonutCard extends StatelessWidget {
                     Text(
                       "High",
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: 14,
                         fontWeight: FontWeight.w900,
                         color: AppColors.textMuted,
                       ),
@@ -1192,28 +1093,20 @@ class _InfectionDonutCard extends StatelessWidget {
                 Text(
                   "Counts",
                   style: GoogleFonts.inter(
-                    fontSize: 12.4,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 10),
-                _LegendLine(
-                  color: AppColors.errorColor,
-                  title: "High",
-                  value: "$high",
-                ),
+                _LegendLine(color: AppColors.errorColor, title: "High", value: "$high"),
                 const SizedBox(height: 8),
-                _LegendLine(
-                  color: AppColors.successColor,
-                  title: "Low",
-                  value: "$low",
-                ),
+                _LegendLine(color: AppColors.successColor, title: "Low", value: "$low"),
                 const SizedBox(height: 14),
                 Text(
-                  "Tip: if you see more “High”, consider contacting your doctor.",
+                  "Tip: if you see more High, consider contacting your doctor.",
                   style: GoogleFonts.inter(
-                    fontSize: 12.2,
+                    fontSize: 14,
                     height: 1.35,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textMuted,
@@ -1253,7 +1146,7 @@ class _LegendLine extends StatelessWidget {
           child: Text(
             title,
             style: GoogleFonts.inter(
-              fontSize: 12.6,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
               color: AppColors.textSecondary,
             ),
@@ -1306,10 +1199,8 @@ class _DonutPainter extends CustomPainter {
       ..strokeWidth = 14
       ..strokeCap = StrokeCap.round;
 
-    // base ring
     canvas.drawCircle(center, r - 10, bg);
 
-    // draw low full first
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: r - 10),
       -math.pi / 2,
@@ -1318,7 +1209,6 @@ class _DonutPainter extends CustomPainter {
       lowPaint,
     );
 
-    // overlay high slice
     final sweep = (2 * math.pi) * highPct.clamp(0.0, 1.0);
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: r - 10),
@@ -1335,304 +1225,7 @@ class _DonutPainter extends CustomPainter {
   }
 }
 
-/* ===================== Vitals charts ===================== */
 
-class _VitalsChartCard extends StatelessWidget {
-  const _VitalsChartCard({
-    required this.title,
-    required this.valuesA,
-    required this.valuesB,
-    required this.colorA,
-    required this.colorB,
-    required this.labelA,
-    required this.labelB,
-    required this.emptyHint,
-    required this.unitRight,
-  });
-
-  final String title;
-  final List<double> valuesA;
-  final List<double> valuesB;
-  final Color colorA;
-  final Color colorB;
-  final String labelA;
-  final String labelB;
-  final String emptyHint;
-  final String unitRight;
-
-  bool _hasData(List<double> v) =>
-      v.where((x) => x.isFinite && x != 0).isNotEmpty && v.length >= 2;
-
-  @override
-  Widget build(BuildContext context) {
-    final aOk = _hasData(valuesA);
-    final bOk = valuesB.isNotEmpty ? _hasData(valuesB) : false;
-    final hasData = aOk || bOk;
-
-    final all = <double>[
-      ...valuesA.where((e) => e.isFinite && e != 0),
-      ...valuesB.where((e) => e.isFinite && e != 0),
-    ];
-    final minV = all.isEmpty ? 0.0 : all.reduce(math.min);
-    final maxV = all.isEmpty ? 1.0 : all.reduce(math.max);
-
-    double avg(List<double> v) {
-      final cleaned = v.where((e) => e.isFinite && e != 0).toList();
-      if (cleaned.isEmpty) return 0;
-      return cleaned.reduce((a, b) => a + b) / cleaned.length;
-    }
-
-    final avgA = valuesA.isEmpty ? 0.0 : avg(valuesA);
-    final lastA = valuesA.isEmpty ? 0.0 : valuesA.last;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        color: AppColors.surfaceColor.withOpacity(0.95),
-        border: Border.all(color: AppColors.primaryColor.withOpacity(0.10)),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.show_chart_rounded,
-                  color: AppColors.primaryColor, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 13.2,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              Text(
-                unitRight,
-                style: GoogleFonts.inter(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              color: Colors.white.withOpacity(0.90),
-              border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
-            ),
-            child: hasData
-                ? Stack(
-              children: [
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _DashboardLinePainter(
-                      a: valuesA,
-                      b: valuesB,
-                      colorA: colorA,
-                      colorB: colorB,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 10,
-                  top: 10,
-                  child: _MiniStat(text: "max ${maxV.toStringAsFixed(1)}"),
-                ),
-                Positioned(
-                  left: 10,
-                  bottom: 10,
-                  child: _MiniStat(text: "min ${minV.toStringAsFixed(1)}"),
-                ),
-                Positioned(
-                  right: 10,
-                  top: 10,
-                  child: _MiniStat(text: "avg ${avgA.toStringAsFixed(1)}"),
-                ),
-                Positioned(
-                  right: 10,
-                  bottom: 10,
-                  child: _MiniStat(text: "last ${lastA.toStringAsFixed(1)}"),
-                ),
-              ],
-            )
-                : Center(
-              child: Text(
-                emptyHint,
-                style: GoogleFonts.inter(
-                  fontSize: 12.2,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _LegendDot(color: colorA, text: labelA.isEmpty ? "A" : labelA),
-              if (valuesB.isNotEmpty) ...[
-                const SizedBox(width: 10),
-                _LegendDot(color: colorB, text: labelB.isEmpty ? "B" : labelB),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: Colors.white.withOpacity(0.92),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
-      ),
-      child: Text(
-        text,
-        style: GoogleFonts.inter(
-          fontSize: 11.2,
-          fontWeight: FontWeight.w900,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  const _LegendDot({required this.color, required this.text});
-  final Color color;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 9,
-          height: 9,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: GoogleFonts.inter(
-            fontSize: 11.4,
-            fontWeight: FontWeight.w900,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DashboardLinePainter extends CustomPainter {
-  _DashboardLinePainter({
-    required this.a,
-    required this.b,
-    required this.colorA,
-    required this.colorB,
-  });
-
-  final List<double> a;
-  final List<double> b;
-  final Color colorA;
-  final Color colorB;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // dotted background grid
-    final dotPaint = Paint()..color = Colors.black.withOpacity(0.045);
-    for (double x = 10; x < size.width; x += 22) {
-      for (double y = 10; y < size.height; y += 22) {
-        canvas.drawCircle(Offset(x, y), 1.35, dotPaint);
-      }
-    }
-
-    final all = <double>[
-      ...a.where((e) => e.isFinite && e != 0),
-      ...b.where((e) => e.isFinite && e != 0),
-    ];
-    if (all.isEmpty) return;
-
-    final minV = all.reduce(math.min);
-    final maxV = all.reduce(math.max);
-    final range = (maxV - minV).abs() < 1e-6 ? 1.0 : (maxV - minV);
-
-    Offset mapPoint(int i, List<double> values) {
-      final x = (i / math.max(1, values.length - 1)) * (size.width - 20) + 10;
-      final norm = (values[i] - minV) / range;
-      final y = (1 - norm) * (size.height - 24) + 12;
-      return Offset(x, y);
-    }
-
-    void drawSeries(List<double> values, Color c) {
-      final cleaned = values.map((e) => (e.isFinite ? e : 0.0)).toList();
-      if (cleaned.length < 2) return;
-
-      final pts = <Offset>[];
-      for (int i = 0; i < cleaned.length; i++) {
-        pts.add(mapPoint(i, cleaned));
-      }
-
-      // fill under curve
-      final fill = Paint()
-        ..color = c.withOpacity(0.10)
-        ..style = PaintingStyle.fill;
-
-      final fillPath = Path()
-        ..moveTo(pts.first.dx, size.height - 12)
-        ..lineTo(pts.first.dx, pts.first.dy);
-      for (int i = 1; i < pts.length; i++) {
-        fillPath.lineTo(pts[i].dx, pts[i].dy);
-      }
-      fillPath.lineTo(pts.last.dx, size.height - 12);
-      fillPath.close();
-      canvas.drawPath(fillPath, fill);
-
-      final stroke = Paint()
-        ..color = c.withOpacity(0.95)
-        ..strokeWidth = 3.0
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-
-      final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-      for (int i = 1; i < pts.length; i++) {
-        path.lineTo(pts[i].dx, pts[i].dy);
-      }
-      canvas.drawPath(path, stroke);
-
-      // last-point marker
-      canvas.drawCircle(pts.last, 4.2, Paint()..color = c.withOpacity(0.95));
-      canvas.drawCircle(pts.last, 8.0, Paint()..color = c.withOpacity(0.12));
-    }
-
-    drawSeries(a, colorA);
-    if (b.isNotEmpty) drawSeries(b, colorB);
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashboardLinePainter oldDelegate) {
-    return oldDelegate.a != a || oldDelegate.b != b;
-  }
-}
 
 /* ===================== Background: blue glassy ===================== */
 
@@ -1659,12 +1252,14 @@ class _BlueGlassyBackground extends StatelessWidget {
         Positioned(
           top: -170,
           left: -150,
-          child: _Blob(size: 520, color: AppColors.secondaryColor.withOpacity(0.22)),
+          child:
+          _Blob(size: 520, color: AppColors.secondaryColor.withOpacity(0.22)),
         ),
         Positioned(
           top: 120,
           right: -180,
-          child: _Blob(size: 560, color: AppColors.primaryColor.withOpacity(0.10)),
+          child:
+          _Blob(size: 560, color: AppColors.primaryColor.withOpacity(0.10)),
         ),
         Positioned(
           bottom: -220,
@@ -1698,8 +1293,13 @@ class _Blob extends StatelessWidget {
 /* ===================== UI bits ===================== */
 
 class _AvatarButton extends StatelessWidget {
-  const _AvatarButton({required this.letter});
+  const _AvatarButton({
+    required this.letter,
+    this.imageUrl,
+  });
+
   final String letter;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -1709,13 +1309,21 @@ class _AvatarButton extends StatelessWidget {
       child: SizedBox(
         width: 44,
         height: 44,
-        child: Center(
-          child: Text(
-            letter,
-            style: GoogleFonts.dmSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: AppColors.primaryColor,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: imageUrl != null && imageUrl!.isNotEmpty
+              ? Image.network(
+            imageUrl!,
+            fit: BoxFit.cover,
+          )
+              : Center(
+            child: Text(
+              letter,
+              style: GoogleFonts.dmSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: AppColors.primaryColor,
+              ),
             ),
           ),
         ),
@@ -1844,7 +1452,7 @@ class _CasePickerPill extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.dmSans(
-                        fontSize: 14.5,
+                        fontSize: 16,
                         fontWeight: FontWeight.w900,
                         color: AppColors.textPrimary,
                         height: 1.0,
@@ -1856,7 +1464,7 @@ class _CasePickerPill extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        fontSize: 12.2,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textMuted,
                       ),
@@ -1865,7 +1473,8 @@ class _CasePickerPill extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryColor),
+              const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.primaryColor),
             ],
           ),
         ),
@@ -1877,12 +1486,10 @@ class _CasePickerPill extends StatelessWidget {
 class _GlassSectionCard extends StatelessWidget {
   const _GlassSectionCard({
     required this.title,
-    required this.subtitle,
     required this.child,
   });
 
   final String title;
-  final String subtitle;
   final Widget child;
 
   @override
@@ -1907,21 +1514,12 @@ class _GlassSectionCard extends StatelessWidget {
           Text(
             title,
             style: GoogleFonts.dmSans(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: GoogleFonts.inter(
-              fontSize: 12.8,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-              height: 1.35,
-            ),
-          ),
           const SizedBox(height: 14),
           child,
         ],
@@ -1969,73 +1567,57 @@ class _MetricGlassCard extends StatelessWidget {
           Row(
             children: [
               _CardIconBadge(tint: tint, icon: icon),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
+
+              // Left: label
               Expanded(
                 child: Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.dmSans(
-                    fontSize: 14.5,
+                    fontSize: 16, // you’ll change sizes later
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
-                    height: 1.05,
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
+
+              const SizedBox(width: 12),
+
+              // Right: value + unit
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
                     value,
                     style: GoogleFonts.dmSans(
-                      fontSize: 18,
+                      fontSize: 16, // you’ll change sizes later
                       fontWeight: FontWeight.w900,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                ),
-              ),
-              if (unit.trim().isNotEmpty) ...[
-                const SizedBox(width: 6),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 3),
-                  child: Text(
-                    unit,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textMuted,
+                  if (unit.trim().isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(
+                        unit,
+                        style: GoogleFonts.inter(
+                          fontSize: 14, // you’ll change sizes later
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              color: tint.withOpacity(0.08),
-              border: Border.all(color: tint.withOpacity(0.18)),
-            ),
-            child: Text(
-              badgeText,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                fontSize: 11.8,
-                fontWeight: FontWeight.w900,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
+
+
         ],
       ),
     );
@@ -2096,7 +1678,7 @@ class _StatusChip extends StatelessWidget {
           Text(
             text,
             style: GoogleFonts.inter(
-              fontSize: 11.5,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
               color: color,
             ),

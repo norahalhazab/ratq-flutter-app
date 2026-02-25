@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../widgets/bottom_nav.dart';
-import 'case_created_start_screen.dart';
+import 'whq_screen.dart';
 import 'cases_screen.dart';
 
 class CreateCaseScreen extends StatefulWidget {
@@ -162,7 +162,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => CaseCreatedStartScreen(caseId: docRef.id),
+          builder: (_) => WhqScreen(caseId: docRef.id),
         ),
       );
     } catch (e) {
