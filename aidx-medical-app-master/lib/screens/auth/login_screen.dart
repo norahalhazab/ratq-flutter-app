@@ -152,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: _SlidingAuthCard(
                     showLogin: _showLogin,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+                      padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
                       child: Column(
                         children: [
                           _AuthSwitchLiquid(
@@ -162,8 +162,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             onTapLeft: () => setState(() => _showLogin = true),
                             onTapRight: () => setState(() => _showLogin = false),
                           ),
-                          const SizedBox(height: 18),
-                          Expanded(
+                          const SizedBox(height: 12),
+                          Flexible(
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 420),
                               switchInCurve: Curves.easeOutCubic,

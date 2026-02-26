@@ -83,14 +83,14 @@ class _SplashScreenState extends State<SplashScreen> {
             children: [
               Image.asset(
                 'assets/images/logo2.png',
-                height: 120,
+                height: 200,
                 fit: BoxFit.contain,
               ),
               const SizedBox(height: 18),
               const Text(
                 'Ratq',
                 style: TextStyle(
-                  fontSize: 34,
+                  fontSize: 42,
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
                   letterSpacing: 0.5,
@@ -100,7 +100,7 @@ class _SplashScreenState extends State<SplashScreen> {
               const Text(
                 'Wound Monitoring App',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 28,
                   color: Colors.white70,
                   fontWeight: FontWeight.w500,
                 ),
