@@ -1,13 +1,15 @@
 // create_case_screen.dart
 import 'dart:ui';
-import 'package:flutter/material.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../utils/app_colors.dart';
 import '../widgets/bottom_nav.dart';
-import 'whq_screen.dart';
 import 'cases_screen.dart';
+import 'whq_screen.dart';
 
 class CreateCaseScreen extends StatefulWidget {
   const CreateCaseScreen({super.key});
@@ -20,14 +22,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
   DateTime? _surgeryDate;
   bool _loading = false;
 
-  // ✅ Case name controller
   final TextEditingController _caseNameCtrl = TextEditingController();
-
-  // Brand
-  static const Color primary = Color(0xFF3B7691);
-  static const Color glassBlue = Color(0xFF63A2BF);
-  static const Color titleColor = Color(0xFF0F172A);
-  static const Color bodyMuted = Color(0xFF64748B);
 
   @override
   void dispose() {
@@ -46,11 +41,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
   }
 
   void _goToCases() {
-    // ✅ Go to cases screen (replacement so nav state stays clean)
-    Navigator.pushReplacement(
-      context,
-      _route(const CasesScreen()),
-    );
+    Navigator.pushReplacement(context, _route(const CasesScreen()));
   }
 
   Future<void> _pickDate() async {
@@ -66,15 +57,15 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
         return Theme(
           data: base.copyWith(
             colorScheme: base.colorScheme.copyWith(
-              primary: primary,
+              primary: AppColors.primaryColor,
               onPrimary: Colors.white,
               surface: Colors.white,
-              onSurface: titleColor,
+              onSurface: AppColors.textPrimary,
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: primary,
-                textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                foregroundColor: AppColors.primaryColor,
+                textStyle: GoogleFonts.inter(fontWeight: FontWeight.w800),
               ),
             ),
             dialogTheme: DialogThemeData(
@@ -91,7 +82,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
     if (picked != null) setState(() => _surgeryDate = picked);
   }
 
-  // ✅ Get next case number = max(caseNumber) + 1
   Future<int> _getNextCaseNumber(String uid) async {
     final snap = await FirebaseFirestore.instance
         .collection('users')
@@ -129,8 +119,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
     try {
       final nextNo = await _getNextCaseNumber(user.uid);
-
-      // ✅ Final saved name:
       final finalName = name.isNotEmpty ? name : "Wound $nextNo";
 
       final docRef = await FirebaseFirestore.instance
@@ -138,16 +126,10 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
           .doc(user.uid)
           .collection('cases')
           .add({
-        // store both keys for safety
         'caseNumber': nextNo,
         'caseNo': nextNo,
-
-        // case name
         'caseName': finalName,
-
-        // backward compatibility
         'title': finalName,
-
         'status': 'active',
         'infectionScore': 0,
         'surgeryDate': Timestamp.fromDate(_surgeryDate!),
@@ -161,9 +143,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => WhqScreen(caseId: docRef.id),
-        ),
+        MaterialPageRoute(builder: (_) => WhqScreen(caseId: docRef.id)),
       );
     } catch (e) {
       _toast(e.toString());
@@ -179,154 +159,78 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
     final yyyy = _surgeryDate == null ? "YYYY" : _surgeryDate!.year.toString();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.backgroundColor,
       bottomNavigationBar: AppBottomNav(
         currentIndex: 2,
         onNewTap: () {}, // already here
       ),
       body: Stack(
         children: [
-          const _SoftGlassBackground(),
+          const _BlueGlassyBackground(),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 118),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 118),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ✅ Top bar with back arrow -> CasesScreen
-                  SizedBox(
-                    height: 44,
-                    child: Row(
-                      children: [
-                        InkWell(
-                          onTap: _goToCases,
-                          borderRadius: BorderRadius.circular(999),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.75),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: primary.withOpacity(0.18)),
-                            ),
-                            child: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              size: 18,
-                              color: titleColor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Center(
-                            child: Text(
-                              "Create Wound Case",
-                              style: GoogleFonts.inter(
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w700,
-                                color: titleColor.withOpacity(0.85),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // keep right side balanced
-                        const SizedBox(width: 40),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  _GlassCard(
-                    radius: 24,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Create Wound Case",
-                            style: GoogleFonts.dmSans(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: titleColor,
-                              height: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            "Start monitoring a new wound with daily check-ins and progress tracking.",
+                  // ===== Top bar (matches CasesScreen style) =====
+                  Row(
+                    children: [
+                      _IconPillButton(
+                        icon: Icons.arrow_back_ios_new_rounded,
+                        onTap: _goToCases,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            "Create Wound",
                             style: GoogleFonts.inter(
-                              fontSize: 13.5,
-                              height: 1.5,
-                              fontWeight: FontWeight.w500,
-                              color: bodyMuted,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary,
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 44), // balance
+                    ],
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
-                  // Case name
-                  Padding(
-                    padding: const EdgeInsets.only(left: 6, bottom: 8),
-                    child: Text(
-                      "Wound case name",
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: titleColor.withOpacity(0.85),
-                      ),
+                  // ===== Wound name =====
+                  Text(
+                    "Wound name",
+                    style: GoogleFonts.inter(
+                      fontSize: 20, // Subheading
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 6, bottom: 12),
-                    child: Text(
-                      "Give this wound case a name (ex: \"Left knee\").",
-                      style: GoogleFonts.inter(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        color: bodyMuted,
-                      ),
-                    ),
-                  ),
-                  _GlassTextField(
+                  const SizedBox(height: 10), // tighter spacing (fix your issue)
+                  _BlueGlassTextField(
                     controller: _caseNameCtrl,
-                    hintText: "Type a Wound case name (optional)",
+                    hintText: "e.g. Left knee",
                   ),
 
                   const SizedBox(height: 18),
 
-                  // Surgery date
-                  Padding(
-                    padding: const EdgeInsets.only(left: 6, bottom: 8),
-                    child: Text(
-                      "Surgery date",
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: titleColor.withOpacity(0.85),
-                      ),
+                  // ===== Surgery date =====
+                  Text(
+                    "Surgery date",
+                    style: GoogleFonts.inter(
+                      fontSize: 20, // Subheading
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 6, bottom: 12),
-                    child: Text(
-                      "Select the date when the surgery was performed.",
-                      style: GoogleFonts.inter(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        color: bodyMuted,
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: 10),
 
                   Row(
                     children: [
                       Expanded(
-                        child: _GlassDateBox(
+                        child: _BlueGlassDateBox(
                           label: "Day",
                           value: dd,
                           onTap: _pickDate,
@@ -334,7 +238,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: _GlassDateBox(
+                        child: _BlueGlassDateBox(
                           label: "Month",
                           value: mm,
                           onTap: _pickDate,
@@ -342,7 +246,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: _GlassDateBox(
+                        child: _BlueGlassDateBox(
                           label: "Year",
                           value: yyyy,
                           onTap: _pickDate,
@@ -357,30 +261,15 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
                   const SizedBox(height: 18),
 
+                  // ===== Primary button (match other pages) =====
                   SizedBox(
                     width: double.infinity,
-                    height: 52,
+                    height: 50,
                     child: _loading
-                        ? const _LoadingGlassButton()
-                        : ElevatedButton(
-                      onPressed: _createCase,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.80),
-                        elevation: 0,
-                        shape: const StadiumBorder(),
-                        side: BorderSide(
-                          color: primary.withOpacity(0.55),
-                          width: 1.4,
-                        ),
-                      ),
-                      child: Text(
-                        "Create Wound Case",
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: primary,
-                        ),
-                      ),
+                        ? const _LoadingPrimaryButton()
+                        : _PrimaryButton(
+                      label: "Create Wound Case",
+                      onTap: _createCase,
                     ),
                   ),
                 ],
@@ -397,7 +286,6 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
-/* ✅ same transition style used in your bottom nav */
 PageRouteBuilder _route(Widget page) {
   return PageRouteBuilder(
     transitionDuration: const Duration(milliseconds: 180),
@@ -411,10 +299,10 @@ PageRouteBuilder _route(Widget page) {
   );
 }
 
-/* ---------------- background ---------------- */
+/* ===================== Background: same as CasesScreen ===================== */
 
-class _SoftGlassBackground extends StatelessWidget {
-  const _SoftGlassBackground();
+class _BlueGlassyBackground extends StatelessWidget {
+  const _BlueGlassyBackground();
 
   @override
   Widget build(BuildContext context) {
@@ -426,36 +314,33 @@ class _SoftGlassBackground extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
+                Color(0xFFEAF5FB),
+                Color(0xFFDCEEF7),
                 Color(0xFFF7FBFF),
-                Color(0xFFEEF7FF),
-                Color(0xFFF8FAFC),
               ],
             ),
           ),
         ),
         Positioned(
-          top: -140,
-          left: -120,
+          top: -170,
+          left: -150,
           child: _Blob(
-            size: 420,
-            color: const Color(0xFF63A2BF).withOpacity(0.18),
+            size: 520,
+            color: AppColors.secondaryColor.withOpacity(0.22),
           ),
         ),
         Positioned(
           top: 120,
-          right: -150,
+          right: -180,
           child: _Blob(
-            size: 520,
-            color: Colors.white.withOpacity(0.40),
+            size: 560,
+            color: AppColors.primaryColor.withOpacity(0.10),
           ),
         ),
         Positioned(
-          bottom: -200,
-          left: -140,
-          child: _Blob(
-            size: 560,
-            color: const Color(0xFF3B7691).withOpacity(0.10),
-          ),
+          bottom: -220,
+          left: -160,
+          child: _Blob(size: 600, color: Colors.white.withOpacity(0.60)),
         ),
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
@@ -481,63 +366,38 @@ class _Blob extends StatelessWidget {
   }
 }
 
-/* ---------------- glass components ---------------- */
+/* ===================== Pills (match CasesScreen) ===================== */
 
-class _GlassCard extends StatelessWidget {
-  const _GlassCard({
-    required this.child,
-    this.radius = 20,
-    this.tint,
-    this.tintOpacity = 0.0,
-  });
-
-  final Widget child;
-  final double radius;
-  final Color? tint;
-  final double tintOpacity;
+class _IconPillButton extends StatelessWidget {
+  const _IconPillButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final border = Colors.white.withOpacity(0.70);
-    final bg = Colors.white.withOpacity(0.72);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: border, width: 1),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                bg,
-                bg.withOpacity(0.58),
-                bg.withOpacity(0.70),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(999),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              color: Colors.white.withOpacity(0.90),
+              border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                ),
               ],
             ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x14000000),
-                blurRadius: 18,
-                offset: Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              if (tint != null && tintOpacity > 0)
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: tint!.withOpacity(tintOpacity),
-                    ),
-                  ),
-                ),
-              child,
-            ],
+            child: Icon(icon, color: AppColors.primaryColor, size: 18),
           ),
         ),
       ),
@@ -545,8 +405,10 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-class _GlassTextField extends StatelessWidget {
-  const _GlassTextField({
+/* ===================== Inputs (blue-tinted like login) ===================== */
+
+class _BlueGlassTextField extends StatelessWidget {
+  const _BlueGlassTextField({
     required this.controller,
     required this.hintText,
   });
@@ -559,25 +421,21 @@ class _GlassTextField extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withOpacity(0.70)),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withOpacity(0.75),
-                Colors.white.withOpacity(0.55),
-              ],
+            color: Colors.white,
+            border: Border.all(
+              color: AppColors.primaryColor.withOpacity(0.15),
+              width: 1.2,
             ),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 12,
-                offset: Offset(0, 8),
+                color: AppColors.primaryColor.withOpacity(0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -585,17 +443,21 @@ class _GlassTextField extends StatelessWidget {
             controller: controller,
             textInputAction: TextInputAction.done,
             style: GoogleFonts.inter(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF0F172A),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
             decoration: InputDecoration(
               border: InputBorder.none,
               hintText: hintText,
               hintStyle: GoogleFonts.inter(
-                fontSize: 13.2,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF94A3B8),
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMuted.withOpacity(0.6),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: 14,
               ),
             ),
           ),
@@ -605,8 +467,8 @@ class _GlassTextField extends StatelessWidget {
   }
 }
 
-class _GlassDateBox extends StatelessWidget {
-  const _GlassDateBox({
+class _BlueGlassDateBox extends StatelessWidget {
+  const _BlueGlassDateBox({
     required this.label,
     required this.value,
     required this.onTap,
@@ -626,25 +488,18 @@ class _GlassDateBox extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white.withOpacity(0.70)),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withOpacity(0.75),
-                  Colors.white.withOpacity(0.55),
-                ],
-              ),
-              boxShadow: const [
+              color: Colors.white.withOpacity(0.92), // ✅ white box
+              border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x12000000),
-                  blurRadius: 12,
-                  offset: Offset(0, 8),
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
@@ -654,9 +509,9 @@ class _GlassDateBox extends StatelessWidget {
                 Text(
                   label,
                   style: GoogleFonts.inter(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF64748B),
+                    fontSize: 14, // Small info
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -665,18 +520,16 @@ class _GlassDateBox extends StatelessWidget {
                     Text(
                       value,
                       style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: isPlaceholder
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF0F172A),
+                        fontSize: 16, // Body
+                        fontWeight: FontWeight.w900,
+                        color: isPlaceholder ? AppColors.textMuted : AppColors.textPrimary,
                       ),
                     ),
                     const Spacer(),
                     Icon(
                       Icons.calendar_month_rounded,
                       size: 18,
-                      color: const Color(0xFF3B7691).withOpacity(0.75),
+                      color: AppColors.primaryColor.withOpacity(0.85),
                     ),
                   ],
                 ),
@@ -689,23 +542,59 @@ class _GlassDateBox extends StatelessWidget {
   }
 }
 
-class _LoadingGlassButton extends StatelessWidget {
-  const _LoadingGlassButton();
+/* ===================== Primary button (match other pages vibe) ===================== */
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: AppColors.primaryGradient,
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 18,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 16, // Body
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingPrimaryButton extends StatelessWidget {
+  const _LoadingPrimaryButton();
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.70),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: const Color(0xFF3B7691).withOpacity(0.35),
-              width: 1.2,
-            ),
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.white.withOpacity(0.80),
+            border: Border.all(color: AppColors.primaryColor.withOpacity(0.22)),
           ),
           child: const Center(
             child: SizedBox(
@@ -720,7 +609,7 @@ class _LoadingGlassButton extends StatelessWidget {
   }
 }
 
-/* ---------------- FAQ "What happens next?" ---------------- */
+/* ===================== FAQ card (same, but font sizing aligned) ===================== */
 
 class _FaqGlassCard extends StatefulWidget {
   const _FaqGlassCard();
@@ -732,13 +621,9 @@ class _FaqGlassCard extends StatefulWidget {
 class _FaqGlassCardState extends State<_FaqGlassCard> {
   bool _expanded = false;
 
-  static const Color primary = Color(0xFF3B7691);
-  static const Color titleColor = Color(0xFF0F172A);
-
   @override
   Widget build(BuildContext context) {
-    return _GlassCard(
-      radius: 22,
+    return _FrostedCard(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
         child: Column(
@@ -749,9 +634,9 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                   child: Text(
                     "What happens next?",
                     style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: titleColor,
+                      fontSize: 16, // Body
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
@@ -761,10 +646,10 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     minimumSize: Size.zero,
-                    foregroundColor: primary,
+                    foregroundColor: AppColors.primaryColor,
                     textStyle: GoogleFonts.inter(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 14, // Small info
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   child: Text(_expanded ? "View less" : "View more"),
@@ -779,13 +664,11 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.70),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: primary.withOpacity(0.20)),
+                      border: Border.all(color: AppColors.primaryColor.withOpacity(0.20)),
                     ),
                     child: Icon(
-                      _expanded
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      color: primary,
+                      _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.primaryColor,
                       size: 22,
                     ),
                   ),
@@ -800,11 +683,11 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
                     _FaqLine(icon: Icons.quiz_outlined, text: "Complete the WHQ questionnaire"),
-                    SizedBox(height: 8),
+                    SizedBox(height: 10),
                     _FaqLine(icon: Icons.photo_camera_outlined, text: "Capture wound images"),
-                    SizedBox(height: 8),
+                    SizedBox(height: 10),
                     _FaqLine(icon: Icons.thermostat_outlined, text: "Record your temperature"),
-                    SizedBox(height: 8),
+                    SizedBox(height: 10),
                     _FaqLine(icon: Icons.monitor_heart_outlined, text: "Get infection risk score"),
                   ],
                 ),
@@ -821,16 +704,10 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
 }
 
 class _FaqLine extends StatelessWidget {
-  const _FaqLine({
-    required this.icon,
-    required this.text,
-  });
+  const _FaqLine({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
-
-  static const Color primary = Color(0xFF3B7691);
-  static const Color bodyMuted = Color(0xFF64748B);
 
   @override
   Widget build(BuildContext context) {
@@ -840,25 +717,57 @@ class _FaqLine extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: primary.withOpacity(0.08),
+            color: AppColors.primaryColor.withOpacity(0.08),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: primary.withOpacity(0.12)),
+            border: Border.all(color: AppColors.primaryColor.withOpacity(0.12)),
           ),
-          child: Icon(icon, color: primary.withOpacity(0.9), size: 18),
+          child: Icon(icon, color: AppColors.primaryColor.withOpacity(0.9), size: 18),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             text,
             style: GoogleFonts.inter(
-              fontSize: 12.8,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-              color: bodyMuted,
+              fontSize: 14, // Small info
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/* ===================== Frosted card helper ===================== */
+
+class _FrostedCard extends StatelessWidget {
+  const _FrostedCard({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            color: Colors.white.withOpacity(0.92),
+            border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 22,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
     );
   }
 }
