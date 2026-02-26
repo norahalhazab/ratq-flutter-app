@@ -270,19 +270,19 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 children: [
                   const SizedBox(height: 8),
                   Text(
-                    "Alert & Notifications",
+                    "Notifications",
                     style: GoogleFonts.dmSans(
-                      fontSize: 24,
+                      fontSize: 28,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    "Important updates about your wound healing",
+                    "Daily wound check reminder",
                     style: GoogleFonts.inter(
-                      fontSize: 13.2,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -348,27 +348,16 @@ class _AlertsScreenState extends State<AlertsScreen> {
         children: [
           Icon(
             Icons.notifications_none_rounded,
-            size: 36,
+            size: 50,
             color: AppColors.textPrimary.withOpacity(0.85),
           ),
           const SizedBox(height: 16),
           Text(
             "No Notifications Yet",
             style: GoogleFonts.inter(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "You’ll be notified here once there’s\nsomething new.",
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
             ),
           ),
         ],

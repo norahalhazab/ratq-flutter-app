@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../utils/app_colors.dart';
 import 'profile_screen.dart';
 import 'auth/login_screen.dart';
 import '../widgets/bottom_nav.dart';
@@ -19,8 +20,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   static const Color primary = Color(0xFF3B7691);
-
-
   static const double _navBarHeight = 78;
 
   Future<void> _logout() async {
@@ -34,40 +33,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
+
+      // ✅ AppBar مثل Notifications
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF6F7FB),
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        title: Text(
+          "Settings",
+          style: GoogleFonts.dmSans(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
+
       body: SafeArea(
         child: SingleChildScrollView(
-          // ✅ dynamic bottom space so it never overlaps with the nav bar
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 18 + _navBarHeight),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top bar
-              Row(
-                children: [
-                  const Spacer(),
-                  Text(
-                    "Settings",
-                    style: GoogleFonts.inter(
-                      fontSize: 16.5,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF0F172A),
-                    ),
-                  ),
-                  const Spacer(),
-                  const SizedBox(width: 44),
-                ],
-              ),
-
-              const SizedBox(height: 14),
-
               // Profile card
               _GlassCard(
                 radius: 16,
@@ -106,7 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ? user!.displayName!
                                   : (user?.email ?? "User"),
                               style: GoogleFonts.inter(
-                                fontSize: 14.5,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w800,
                                 color: const Color(0xFF0F172A),
                               ),
@@ -115,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Text(
                               "Tap to edit profile",
                               style: GoogleFonts.inter(
-                                fontSize: 12.5,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: const Color(0xFF64748B),
                               ),
@@ -134,8 +128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 14),
 
-
-
+              // Settings list
               _GlassCard(
                 radius: 18,
                 padding: const EdgeInsets.symmetric(vertical: 6),
@@ -148,7 +141,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const NotificationSettingsScreen(),
+                            builder: (_) =>
+                            const NotificationSettingsScreen(),
                           ),
                         );
                       },
@@ -169,7 +163,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const _DividerLine(),
 
-                    // ✅ Change password
                     _SettingRow(
                       icon: Icons.lock_reset_rounded,
                       title: "Change password",
@@ -201,7 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   "Ratq • Wound Monitoring App\nVersion 1.0 • English",
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFF94A3B8),
                     height: 1.35,
@@ -213,19 +206,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
 
-      // ✅ NO padding: touches the end
       bottomNavigationBar: AppBottomNav(
         currentIndex: 4,
-        onNewTap: () {
-          // TODO: open CreateCaseScreen if you want
-        },
+        onNewTap: () {},
       ),
     );
   }
 }
 
 /* ---------------- components ---------------- */
-
 
 class _GlassCard extends StatelessWidget {
   const _GlassCard({
@@ -285,16 +274,16 @@ class _SettingRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 10),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 title,
                 style: GoogleFonts.inter(
-                  fontSize: 13.5,
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: color,
                 ),
@@ -302,6 +291,7 @@ class _SettingRow extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right_rounded,
+              size: 22,
               color: danger ? color.withOpacity(0.9) : const Color(0xFF94A3B8),
             ),
           ],

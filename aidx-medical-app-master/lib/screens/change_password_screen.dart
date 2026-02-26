@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../utils/app_colors.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -94,6 +95,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           child: Text(
             'Cancel',
             style: GoogleFonts.inter(
+              fontSize: 16,
               color: primary,
               fontWeight: FontWeight.w600,
             ),
@@ -112,14 +114,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.lock_outline, color: textMuted),
+                    const Icon(Icons.lock_outline, color: textMuted, size: 28,),
                     const SizedBox(width: 10),
                     Text(
                       'Change Password',
                       style: GoogleFonts.dmSans(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: textDark,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ],
@@ -191,9 +193,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       Text(
                         'Use at least 6 characters. \n Avoid reusing old passwords.',
                         style: GoogleFonts.inter(
-                          fontSize: 12.5,
+                          fontSize: 14,
                           color: textMuted,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
@@ -259,9 +261,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       child: Text(
         text,
         style: GoogleFonts.inter(
-          color: const Color(0xFF334155),
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

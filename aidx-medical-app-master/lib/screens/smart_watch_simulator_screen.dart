@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+import '../utils/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../widgets/bottom_nav.dart';
 import '../services/smart_watch_simulator_service.dart';
 
@@ -22,16 +23,23 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
     final hr = service.heartRate;
     final bp = service.bloodPressure;
-    final temp = service.temperature;
+
+    final connected = service.isConnected;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Smart Watch'),
+        title: Text(
+          "Smart Watch",
+          style: GoogleFonts.dmSans(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.pop(context),
@@ -49,12 +57,11 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
               _WatchMock(
                 heartRate: hr,
                 bloodPressure: bp,
-                temperature: temp,
               ),
 
               const Spacer(),
 
-              // ✅ Ratq Button (Connect / Disconnect)
+              // ✅ Connect button only
               SizedBox(
                 width: double.infinity,
                 height: 58,
@@ -62,14 +69,14 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(999),
                     gradient: LinearGradient(
-                      colors: service.isConnected
+                      colors: connected
                           ? const [
-                        Color(0xFF3B7691),
-                        Color(0xFF5FA3BC),
+                        Color(0xFF2E7D32), // green (connected)
+                        Color(0xFF66BB6A),
                       ]
-                          : [
-                        Colors.grey.shade400,
-                        Colors.grey.shade500,
+                          : const [
+                        Color(0xFF3B7691), // blue (connect)
+                        Color(0xFF5FA3BC),
                       ],
                     ),
                     boxShadow: [
@@ -81,21 +88,17 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
                     ],
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      if (service.isConnected) {
-                        service.disconnect();
-                      } else {
-                        service.connect();
-                      }
-                    },
+                    onPressed: connected
+                        ? null // ✅ no disconnect functionality
+                        : () => service.connect(),
                     icon: Icon(
-                      service.isConnected
+                      connected
                           ? Icons.bluetooth_connected
-                          : Icons.bluetooth_disabled,
+                          : Icons.bluetooth,
                       color: Colors.white,
                     ),
                     label: Text(
-                      service.isConnected ? "Disconnect" : "Connect",
+                      connected ? "Connected" : "Connect",
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
@@ -105,6 +108,8 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
+                      disabledBackgroundColor: Colors.transparent,
+                      disabledForegroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(999),
                       ),
@@ -126,12 +131,10 @@ class _WatchMock extends StatelessWidget {
   const _WatchMock({
     required this.heartRate,
     required this.bloodPressure,
-    required this.temperature,
   });
 
   final int heartRate;
   final String bloodPressure;
-  final double temperature;
 
   @override
   Widget build(BuildContext context) {
@@ -213,14 +216,8 @@ class _WatchMock extends StatelessWidget {
                         label: "BP",
                         value: bloodPressure,
                       ),
-                      const SizedBox(height: 8),
 
-                      _MetricLine(
-                        icon: Icons.thermostat,
-                        iconColor: Colors.orangeAccent,
-                        label: "Temp",
-                        value: "${temperature.toStringAsFixed(1)} °C",
-                      ),
+                      // ✅ Temp removed
                     ],
                   ),
                 ),
