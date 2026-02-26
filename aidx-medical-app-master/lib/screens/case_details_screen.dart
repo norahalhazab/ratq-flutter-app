@@ -11,10 +11,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_colors.dart';
 import '../widgets/bottom_nav.dart';
 import '../services/notification_service.dart';
-import 'whq_screen.dart';
-import 'summary_report_screen.dart';
+import '../services/pdf_service.dart';
 
-class CaseDetailsScreen extends StatelessWidget {
+class CaseDetailsScreen extends StatefulWidget {
   const CaseDetailsScreen({
     super.key,
     required this.caseId,
@@ -24,13 +23,20 @@ class CaseDetailsScreen extends StatelessWidget {
   final String caseId;
   final int? caseNumber;
 
-  // =========================
-  // ✅ Reminder (per case)
-  // =========================
+  @override
+  State<CaseDetailsScreen> createState() => _CaseDetailsScreenState();
+}
+
+class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
+  // Key used to force-refresh the FutureBuilder when a reminder is saved
+  Key _builderKey = UniqueKey();
 
   static String _reminderPrefsKey(String caseId) => 'whq_reminder_case_$caseId';
-
   static String _payloadForCase(String caseId) => 'whq_case:$caseId';
+
+  // =========================
+  // ✅ Reminder Logic
+  // =========================
 
   Future<_CaseReminder?> _loadReminder(String caseId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -52,7 +58,9 @@ class CaseDetailsScreen extends StatelessWidget {
   DateTime _nextOccurrence(TimeOfDay t) {
     final now = DateTime.now();
     var scheduled = DateTime(now.year, now.month, now.day, t.hour, t.minute);
-    if (scheduled.isBefore(now)) scheduled = scheduled.add(const Duration(days: 1));
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
     return scheduled;
   }
 
@@ -83,7 +91,6 @@ class CaseDetailsScreen extends StatelessWidget {
   }) async {
     final existing = await _loadReminder(caseId);
 
-    var enabled = existing?.enabled ?? false;
     var hour = existing?.hour ?? 20;
     var minute = existing?.minute ?? 0;
 
@@ -93,7 +100,6 @@ class CaseDetailsScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.15),
       builder: (_) {
         return Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
@@ -107,226 +113,99 @@ class CaseDetailsScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 46,
-                      height: 5,
-                      margin: const EdgeInsets.only(top: 10, bottom: 14),
+                      width: 46, height: 5,
+                      margin: const EdgeInsets.only(top: 10, bottom: 20),
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
-
-                    Row(
-                      children: [
-                        Text(
-                          "WHQ Reminder",
-                          style: GoogleFonts.dmSans(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () async {
-                            // reset to default
-                            setSheet(() {
-                              enabled = false;
-                              hour = 20;
-                              minute = 0;
-                            });
-
-                            final r = _CaseReminder(
-                              enabled: enabled,
-                              hour: hour,
-                              minute: minute,
-                            );
-                            await _saveReminder(caseId, r);
-
-                            if (sheetCtx.mounted) {
-                              ScaffoldMessenger.of(sheetCtx).showSnackBar(
-                                const SnackBar(content: Text("Reminder reset.")),
-                              );
-                            }
-                          },
-                          child: Text(
-                            "Reset",
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.primaryColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 6),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        caseTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 12.8,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textSecondary,
+                        "Daily Reminder Time",
+                        style: GoogleFonts.dmSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 14),
-
-                    // Enable switch
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        color: AppColors.surfaceColor.withOpacity(0.95),
-                        border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              "Enable daily reminder",
-                              style: GoogleFonts.inter(
-                                fontSize: 13.4,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          Switch(
-                            value: enabled,
-                            onChanged: (v) => setSheet(() => enabled = v),
-                            thumbColor: WidgetStateProperty.all(Colors.white),
-                            trackColor: WidgetStateProperty.resolveWith((states) {
-                              if (states.contains(WidgetState.selected)) {
-                                return AppColors.primaryColor;
-                              }
-                              return Colors.grey.shade300;
-                            }),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Time picker row
+                    const SizedBox(height: 16),
                     InkWell(
-                      onTap: enabled
-                          ? () async {
+                      onTap: () async {
                         final picked = await showTimePicker(
                           context: sheetCtx,
                           initialTime: TimeOfDay(hour: hour, minute: minute),
                         );
                         if (picked == null) return;
-                        setSheet(() {
-                          hour = picked.hour;
-                          minute = picked.minute;
-                        });
-                      }
-                          : null,
+                        setSheet(() { hour = picked.hour; minute = picked.minute; });
+                      },
                       borderRadius: BorderRadius.circular(18),
-                      child: Opacity(
-                        opacity: enabled ? 1 : 0.45,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            color: Colors.white.withOpacity(0.92),
-                            border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                          child: Row(
-                            children: [
-                              Icon(Icons.schedule_rounded, color: AppColors.primaryColor),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  "Reminder time",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13.2,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                timeText,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          color: Colors.white.withOpacity(0.92),
+                          border: Border.all(color: AppColors.dividerColor.withOpacity(0.9)),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        child: Row(
+                          children: [
+                            Icon(Icons.schedule_rounded, color: AppColors.primaryColor),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                "Reminder time",
                                 style: GoogleFonts.inter(
-                                  fontSize: 13.2,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              Icon(Icons.chevron_right_rounded,
-                                  color: AppColors.textMuted.withOpacity(0.9)),
-                            ],
-                          ),
+                            ),
+                            Text(
+                              timeText,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(Icons.chevron_right_rounded, color: AppColors.textMuted.withOpacity(0.9)),
+                          ],
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 16),
-
+                    const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
                         onPressed: () async {
-                          final r = _CaseReminder(
-                            enabled: enabled,
-                            hour: hour,
-                            minute: minute,
-                          );
-                          await _saveReminder(caseId, r);
-
-                          if (enabled) {
-                            await _scheduleReminder(
-                              caseId: caseId,
-                              caseTitle: caseTitle,
-                              time: TimeOfDay(hour: hour, minute: minute),
-                            );
-                          } else {
-                            // لو عندك cancel method في NotificationService اربطيها هنا
-                            // await service.cancelByPayload(_payloadForCase(caseId));
-                          }
+                          final r = _CaseReminder(enabled: true, hour: hour, minute: minute);
+                          await _saveReminder(widget.caseId, r);
+                          await _scheduleReminder(caseId: caseId, caseTitle: caseTitle, time: t);
 
                           if (sheetCtx.mounted) Navigator.pop(sheetCtx);
 
+                          // Refresh the UI to show "Edit Reminder"
+                          setState(() { _builderKey = UniqueKey(); });
+
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  enabled
-                                      ? "Reminder set at $timeText"
-                                      : "Reminder disabled",
-                                ),
-                              ),
+                              SnackBar(content: Text("Reminder scheduled for $timeText")),
                             );
                           }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryColor,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        child: Text(
-                          "Done",
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
+                        child: Text("Done", style: GoogleFonts.inter(fontWeight: FontWeight.w900, color: Colors.white)),
                       ),
                     ),
-
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                   ],
                 );
               },
@@ -338,23 +217,21 @@ class CaseDetailsScreen extends StatelessWidget {
   }
 
   // =========================
-  // ✅ Rename (fixed)
+  // ✅ Rename Logic
   // =========================
+
   Future<void> _editCaseName(
       BuildContext context,
       DocumentReference<Map<String, dynamic>> caseRef,
       String currentDisplayTitle,
       int fallbackNo,
       ) async {
-    final initialText =
-    currentDisplayTitle.startsWith("Wound ") ? "" : currentDisplayTitle;
-
+    final initialText = currentDisplayTitle.startsWith("Wound ") ? "" : currentDisplayTitle;
     final ctrl = TextEditingController(text: initialText);
 
     final result = await showDialog<String?>(
       context: context,
       useRootNavigator: true,
-      barrierDismissible: true,
       builder: (ctx) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -365,33 +242,16 @@ class CaseDetailsScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      "Edit case name",
-                      style: GoogleFonts.dmSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
+                    Text("Edit case name", style: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                     const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.pop(ctx, null),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
+                    IconButton(onPressed: () => Navigator.pop(ctx, null), icon: const Icon(Icons.close_rounded)),
                   ],
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: ctrl,
                   autofocus: true,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => Navigator.pop(ctx, ctrl.text),
-                  decoration: InputDecoration(
-                    hintText: "Example: Left knee",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
+                  decoration: InputDecoration(hintText: "Example: Left knee", border: OutlineInputBorder(borderRadius: BorderRadius.circular(14))),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
@@ -399,31 +259,12 @@ class CaseDetailsScreen extends StatelessWidget {
                   height: 46,
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(ctx, ctrl.text),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      "Save",
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                    child: Text("Save", style: GoogleFonts.inter(fontWeight: FontWeight.w900, color: Colors.white)),
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  "Leave empty to use Wound $fallbackNo.",
-                  style: GoogleFonts.inter(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textMuted,
-                  ),
-                ),
+                Text("Leave empty to use Wound $fallbackNo.", style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
               ],
             ),
           ),
@@ -457,7 +298,6 @@ class CaseDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final stableCtx = context;
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) {
       return Scaffold(
         backgroundColor: AppColors.backgroundColor,
@@ -480,7 +320,7 @@ class CaseDetailsScreen extends StatelessWidget {
         .collection('users')
         .doc(user.uid)
         .collection('cases')
-        .doc(caseId);
+        .doc(widget.caseId);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
@@ -506,8 +346,7 @@ class CaseDetailsScreen extends StatelessWidget {
                 final status = ((data['status'] as String?) ?? 'active').toLowerCase();
                 final isClosed = status == 'closed';
 
-                final int fallbackNo =
-                    caseNumber ?? _asInt(data['caseNumber']) ?? _asInt(data['caseNo']) ?? 0;
+                final int fallbackNo = widget.caseNumber ?? _asInt(data['caseNumber']) ?? _asInt(data['caseNo']) ?? 0;
 
                 final rawName = (data['caseName'] ?? data['title'] ?? '').toString().trim();
                 final displayTitle = rawName.isNotEmpty
@@ -541,108 +380,47 @@ class CaseDetailsScreen extends StatelessWidget {
                           Row(
                             children: [
                               _WhitePillButton(
-                                onTap: () => Navigator.pop(stableCtx),
-                                child: const Icon(
-                                  Icons.arrow_back_ios_new_rounded,
-                                  size: 18,
-                                  color: AppColors.textPrimary,
-                                ),
+                                onTap: () => Navigator.pop(context),
+                                child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: Text(
-                                  "Wound Case details",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
+                                child: Text("Wound Case details", style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                               ),
-
-                              // ✅ REPLACED: top-right status => Set reminder button
-                              _WhitePillButton(
-                                onTap: () => _openReminderSheet(
-                                  context: stableCtx,
-                                  caseId: caseId,
-                                  caseTitle: displayTitle,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.notifications_active_rounded,
-                                      size: 18,
-                                      color: AppColors.primaryColor,
+                              FutureBuilder<_CaseReminder?>(
+                                key: _builderKey,
+                                future: _loadReminder(widget.caseId),
+                                builder: (context, remSnapshot) {
+                                  final hasReminder = remSnapshot.data?.enabled ?? false;
+                                  return _WhitePillButton(
+                                    onTap: () => _openReminderSheet(context: context, caseId: widget.caseId, caseTitle: displayTitle),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.notifications_active_rounded, size: 18, color: AppColors.primaryColor,),
+                                        const SizedBox(width: 8),
+                                        Text(hasReminder ? "Edit reminder" : "Set reminder", style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primaryColor)),
+                                      ],
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      "Set reminder",
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12.2,
-                                        fontWeight: FontWeight.w900,
-                                        color: AppColors.primaryColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  );
+                                },
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 14),
-
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               _FolderBubble(tint: assessTint),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: Text(
-                                  displayTitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textPrimary,
-                                    height: 1.0,
-                                  ),
-                                ),
+                                child: Text(displayTitle, style: GoogleFonts.dmSans(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                               ),
-                              const SizedBox(width: 10),
                               _WhitePillButton(
-                                onTap: () => _editCaseName(
-                                  stableCtx,
-                                  caseRef,
-                                  displayTitle,
-                                  (fallbackNo == 0 ? 1 : fallbackNo),
-                                ),
-                                child: const Icon(
-                                  Icons.edit_outlined,
-                                  size: 18,
-                                  color: AppColors.textPrimary,
-                                ),
+                                onTap: () => _editCaseName(context, caseRef, displayTitle, (fallbackNo == 0 ? 1 : fallbackNo)),
+                                child: const Icon(Icons.edit_outlined, size: 18, color: AppColors.textPrimary),
                               ),
                             ],
                           ),
-
-                          const SizedBox(height: 8),
-
-                          Text(
-                            "Monitor signs of infections for this wound case.",
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                              height: 1.4,
-                            ),
-                          ),
-
                           const SizedBox(height: 16),
-
                           _GlassyCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -709,7 +487,7 @@ class CaseDetailsScreen extends StatelessWidget {
                                             Text(
                                               "Infection assessment",
                                               style: GoogleFonts.inter(
-                                                fontSize: 12.8,
+                                                fontSize: 14,
                                                 fontWeight: FontWeight.w800,
                                                 color: AppColors.textSecondary,
                                               ),
@@ -748,67 +526,39 @@ class CaseDetailsScreen extends StatelessWidget {
                                   children: [
                                     Expanded(
                                       child: _PrimaryActionButton(
-                                        label: isClosed ? "Case is closed" : "Start daily check",
-                                        icon: Icons.play_arrow_rounded,
-                                        disabled: isClosed,
-                                        onTap: isClosed
-                                            ? null
-                                            : () {
-                                          Navigator.push(
-                                            stableCtx,
-                                            MaterialPageRoute(
-                                              builder: (_) => WhqScreen(caseId: caseId),
-                                            ),
-                                          );
+                                        label: "Download medical PDF",
+                                        icon: Icons.picture_as_pdf,
+                                        disabled: false,
+                                        onTap: () async {
+                                          try {
+                                            await PdfReportGenerator.generateAndPrintReportForCase(
+                                              caseId: widget.caseId,
+                                            );
+                                          } catch (e) {
+                                            if (!mounted) return;
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text("Failed to generate PDF: $e")),
+                                            );
+                                          }
                                         },
-                                      ),
-                                    ),
-                                  ],
+                                    )
+                                    )
+                                  ]
                                 ),
 
-                                const SizedBox(height: 12), // Added spacing
-                                _SecondaryActionButton(
-                                  label: "View Summary Report",
-                                  icon: Icons.assignment_outlined,
-                                  onTap: () => Navigator.push(
-                                      stableCtx,
-                                      MaterialPageRoute(builder: (_) => SummaryReportScreen(caseId: caseId))
-                                  ),
-                                ),
 
                                 const SizedBox(height: 10),
                               ],
                             ),
                           ),
-
-                          const SizedBox(height: 14),
-
-                          _FrostedSection(
-                            title: "Tips",
-                            child: Text(
-                              "If symptoms worsen (pain, redness, swelling, fever), seek medical advice.",
-                              style: GoogleFonts.inter(
-                                fontSize: 12.8,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary,
-                                height: 1.45,
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
-
                     Align(
                       alignment: Alignment.bottomCenter,
                       child: _BottomDangerBar(
                         disabled: isClosed,
-                        onClose: () async {
-                          await caseRef.update({
-                            'status': 'closed',
-                            'lastUpdated': FieldValue.serverTimestamp(),
-                          });
-                        },
+                        onClose: () async => await caseRef.update({'status': 'closed', 'lastUpdated': FieldValue.serverTimestamp()}),
                       ),
                     ),
                   ],
@@ -822,11 +572,40 @@ class CaseDetailsScreen extends StatelessWidget {
   }
 }
 
+
+class _CaseReminder {
+  final bool enabled;
+  final int hour;
+  final int minute;
+  const _CaseReminder({required this.enabled, required this.hour, required this.minute});
+  Map<String, dynamic> toJson() => {'enabled': enabled, 'hour': hour, 'minute': minute};
+  static _CaseReminder fromJson(Map<String, dynamic> j) => _CaseReminder(
+    enabled: j['enabled'] ?? false,
+    hour: j['hour'] ?? 20,
+    minute: j['minute'] ?? 0,
+  );
+}
+
+int? _asInt(dynamic v) {
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  return int.tryParse('$v');
+}
+
+String _formatDateOnly(dynamic value) {
+  if (value == null) return "--";
+  DateTime? dt;
+  if (value is Timestamp) dt = value.toDate();
+  if (value is DateTime) dt = value;
+  if (value is String) dt = DateTime.tryParse(value);
+  if (dt == null) return "--";
+  return "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+}
+
 class _SecondaryActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
-
   const _SecondaryActionButton({required this.label, required this.icon, required this.onTap});
 
   @override
@@ -836,6 +615,7 @@ class _SecondaryActionButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       child: Container(
         height: 50,
+        width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           color: Colors.white.withOpacity(0.5),
@@ -846,51 +626,12 @@ class _SecondaryActionButton extends StatelessWidget {
           children: [
             Icon(icon, size: 20, color: AppColors.primaryColor),
             const SizedBox(width: 10),
-            Text(
-              label,
-              style: GoogleFonts.inter(fontSize: 13.5, fontWeight: FontWeight.w900, color: AppColors.primaryColor),
-            ),
+            Text(label, style: GoogleFonts.inter(fontSize: 13.5, fontWeight: FontWeight.w900, color: AppColors.primaryColor)),
           ],
         ),
       ),
     );
   }
-}
-
-// =====================
-// Reminder model
-// =====================
-class _CaseReminder {
-  final bool enabled;
-  final int hour;
-  final int minute;
-
-  const _CaseReminder({
-    required this.enabled,
-    required this.hour,
-    required this.minute,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'enabled': enabled,
-    'hour': hour,
-    'minute': minute,
-  };
-
-  static _CaseReminder fromJson(Map<String, dynamic> j) {
-    return _CaseReminder(
-      enabled: (j['enabled'] as bool?) ?? false,
-      hour: (j['hour'] is int) ? j['hour'] as int : int.tryParse('${j['hour']}') ?? 20,
-      minute: (j['minute'] is int) ? j['minute'] as int : int.tryParse('${j['minute']}') ?? 0,
-    );
-  }
-}
-
-int? _asInt(dynamic v) {
-  if (v == null) return null;
-  if (v is int) return v;
-  if (v is num) return v.toInt();
-  return int.tryParse('$v');
 }
 
 /* ===================== Background: blue glassy ===================== */
@@ -1317,7 +1058,7 @@ class _BottomDangerBar extends StatelessWidget {
                           Text(
                             disabled ? "Case already closed" : "Close wound case",
                             style: GoogleFonts.inter(
-                              fontSize: 13.2,
+                              fontSize: 14,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
                             ),
@@ -1395,26 +1136,3 @@ class _FrostedSheet extends StatelessWidget {
 }
 
 /* ===================== Helpers ===================== */
-
-String _formatDateOnly(dynamic value) {
-  if (value == null) return "--";
-  try {
-    DateTime dt;
-    if (value is Timestamp) {
-      dt = value.toDate();
-    } else if (value is DateTime) {
-      dt = value;
-    } else if (value is String) {
-      dt = DateTime.tryParse(value) ?? DateTime.now();
-    } else {
-      return "--";
-    }
-
-    final yyyy = dt.year.toString();
-    final mm = dt.month.toString().padLeft(2, '0');
-    final dd = dt.day.toString().padLeft(2, '0');
-    return "$yyyy-$mm-$dd";
-  } catch (_) {
-    return "--";
-  }
-}
