@@ -224,9 +224,10 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                             Text(
                               "Capture Wound Image",
                               style: GoogleFonts.dmSans(
-                                fontSize: 18, // Matches cases screen headers
+                                fontSize: 24, // Matches cases screen headers
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.textPrimary,
+                                height: 1.0,
                               ),
                             ),
                           ],
@@ -246,9 +247,8 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                         // ===== 2. Glassy Upload Card =====
                         _GlassyCard(
                           child: Column(
-                            children: [
-                              // Icon Circle
-                              Container(
+                            children: [ _selectedImage == null ?
+                              Container (
                                 width: 80,
                                 height: 80,
                                 decoration: BoxDecoration(
@@ -267,12 +267,12 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                                   ),
                                 ),
                                 child: Icon(
-                                    Icons.camera_alt_outlined,
-                                    size: 32,
-                                    color: AppColors.primaryColor
+                                      Icons.camera_alt_outlined,
+                                      size: 32,
+                                      color: AppColors.primaryColor
+
                                 ),
-                              ),
-                              const SizedBox(height: 20),
+                              ) : const SizedBox(height: 20),
 
                               // Preview Image
                               if (_selectedImage != null) ...[
@@ -302,8 +302,8 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                                 "Ensure the wound is clearly visible",
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
                                   color: AppColors.textSecondary,
                                 ),
                               ),
@@ -363,8 +363,8 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                                   Text(
                                     "Photo Guidelines",
                                     style: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
                                       color: AppColors.textPrimary,
                                     ),
                                   ),
@@ -391,8 +391,8 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
                                         child: Text(
                                           guide,
                                           style: GoogleFonts.inter(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
                                             color: AppColors.textSecondary,
                                             height: 1.4,
                                           ),

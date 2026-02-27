@@ -57,9 +57,10 @@ class UploadSuccessScreen extends StatelessWidget {
                             Text(
                               "Capture Wound Image",
                               style: GoogleFonts.dmSans(
-                                fontSize: 18,
+                                fontSize: 24,
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.textPrimary,
+                                height: 1.0,
                               ),
                             ),
                           ],
@@ -119,26 +120,16 @@ class UploadSuccessScreen extends StatelessWidget {
                                 const SizedBox(height: 24),
 
                                 Text(
-                                  "Image uploaded\nsuccessfully.",
+                                  "Your wound image has been analyzed securely.",
                                   textAlign: TextAlign.center,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w900,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
                                     color: AppColors.textPrimary,
                                     height: 1.2,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Text(
-                                  "Your wound image has been analyzed securely.",
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textSecondary,
-                                    height: 1.5,
-                                  ),
-                                ),
                               ],
                             ),
                           ),

@@ -99,7 +99,7 @@ class _WhqScreenState extends State<WhqScreen> {
                         Expanded(
                           child: Text(
                             titleText,
-                            style: GoogleFonts.dmSans(fontSize: 22, fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+                            style: GoogleFonts.dmSans(fontSize: 22, fontWeight: FontWeight.w900, color: const Color(0xFF0F172A)),
                           ),
                         ),
                         _LangToggle(value: _lang, onChanged: (v) => setState(() => _lang = v)),

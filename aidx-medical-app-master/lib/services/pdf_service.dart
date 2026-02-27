@@ -15,38 +15,66 @@ class PdfReportGenerator {
       throw Exception("User not logged in");
     }
 
-    // -------- Patient Name (same logic as SummaryReportScreen) --------
-    String displayName = user.displayName ?? "";
+
+    String displayName = "no name";
+    String caseName = "Unnamed Case";
+    String caseStartDate = "—"; // formatted yyyy-mm-dd
+    String patientDob = "—";
 
     try {
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
+          .collection('profile')
+          .doc('personal')
           .get();
 
       final userData = userDoc.data();
       if (userData != null) {
-        if (userData['profile'] != null &&
-            userData['profile']['name'] != null) {
-          displayName = userData['profile']['name'].toString();
-        } else {
-          final firestoreName =
-              userData['name'] ?? userData['username'] ??
-                  userData['displayName'];
-          if (firestoreName != null && firestoreName
-              .toString()
-              .trim()
-              .isNotEmpty) {
-            displayName = firestoreName.toString().trim();
+        if (userData['firstName'] != null &&
+            userData['lastName'] != null) {
+          displayName = '${userData['firstName']} ${userData['lastName']}';
+        }
+        if (userData['dob'] != null) {
+          if (userData['dob'] is Timestamp) {
+            patientDob = userData['dob'].toDate().toString().split(' ')[0];
+          } else {
+            patientDob = userData['dob'].toString().split(' ')[0];
           }
         }
       }
     } catch (_) {
       // ignore
     }
+    // -------- Fetch Case information --------
+    try {
+      final caseDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('cases')
+          .doc(caseId)
+          .get();
 
-    if (displayName.isEmpty) {
-      displayName = user.email ?? "Patient";
+      final caseData = caseDoc.data();
+      if (caseData != null) {
+        // case name
+        final cn = caseData['caseName'] ?? caseData['name'] ?? caseData['title'];
+        if (cn != null && cn.toString().trim().isNotEmpty) {
+          caseName = cn.toString().trim();
+        }
+
+        // case start date (timestamp or string)
+        final sd = caseData['startDate'] ?? caseData['createdAt'];
+        if (sd != null) {
+          if (sd is Timestamp) {
+            caseStartDate = sd.toDate().toString().split(' ')[0];
+          } else {
+            caseStartDate = sd.toString().split(' ')[0];
+          }
+        }
+      }
+    } catch (_) {
+      // ignore
     }
 
     // -------- Fetch WHQ responses --------
@@ -132,10 +160,12 @@ class PdfReportGenerator {
 
     // ✅ Finally generate the PDF using your existing method
     await generateAndPrintReport(
-      caseId: caseId,
-      patientName: displayName,
       vitals: vitals,
-      topSymptoms: top3,
+      topQuestions: top3,
+      patientFullName: displayName,
+      patientDob: patientDob,
+      caseName: caseName,
+      caseStartDate: caseStartDate,
       assessmentStatus: assessmentStatus,
     );
   }
@@ -143,11 +173,13 @@ class PdfReportGenerator {
 // ... keep your existing generateAndPrintReport(...) BELOW unchanged ...
 
   static Future<void> generateAndPrintReport({
-  required String caseId,
-  required Map<String, dynamic> vitals,
-  required List<String> topSymptoms,
-  required String patientName,
-  required String assessmentStatus,
+    required Map<String, dynamic> vitals,
+    required List<String> topQuestions,
+    required String patientFullName,
+    required String patientDob,
+    required String caseName,
+    required String caseStartDate,
+    required String assessmentStatus,
   }) async {
   final pdf = pw.Document();
 
@@ -193,6 +225,9 @@ class PdfReportGenerator {
   style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
   pw.Text("Clinical Documentation - Patient Report",
   style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+  pw.Text("This report provides a summary of the data recorded throughout the patient's monitoring period during routine daily checkups.",
+  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+  ),
   ],
   ),
   pw.Text("DATE: ${DateTime.now().toString().split(' ')[0]}",
@@ -203,8 +238,34 @@ class PdfReportGenerator {
   pw.Divider(thickness: 1),
   pw.SizedBox(height: 15),
 
-  _pdfRow("Patient Name:", patientName),
-  _pdfRow("Case Reference:", caseId),
+  pw.Row(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      // LEFT COLUMN
+      pw.Expanded(
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _pdfRow("Patient Name:", patientFullName),
+            _pdfRow("Date of Birth:", patientDob),
+          ],
+        ),
+      ),
+
+      pw.SizedBox(width: 20),
+
+      // RIGHT COLUMN
+      pw.Expanded(
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _pdfRow("Case Name:", caseName),
+            _pdfRow("Case Start Date:", caseStartDate),
+          ],
+        ),
+      ),
+    ],
+  ),
 
   pw.SizedBox(height: 20),
   _sectionHeader("I. CLINICAL VITALS (AVERAGED)"),
@@ -226,25 +287,27 @@ class PdfReportGenerator {
   ),
 
   pw.SizedBox(height: 20),
-  _sectionHeader("II. RECURRING POSITIVE INDICATORS"),
-  pw.Text("The following questions were answered affirmatively by the patient:",
-  style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+  _sectionHeader("II. RECURRING POSITIVE QUESTIONS"),
+  pw.Text(
+  "The following WHQ questions were answered positively during the recorded assessments:",
+  style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+  ),
   pw.SizedBox(height: 8),
 
-  if (topSymptoms.isEmpty)
+  if (topQuestions.isEmpty)
   pw.Text("No positive indicators reported during this period.",
   style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic))
   else
   pw.Column(
   crossAxisAlignment: pw.CrossAxisAlignment.start,
-  children: topSymptoms.map((qId) {
+  children: topQuestions.map((qId) {
   final String fullQuestion = questionMap[qId] ?? "Question ID: $qId";
   return pw.Padding(
   padding: const pw.EdgeInsets.only(bottom: 5),
   child: pw.Row(
   crossAxisAlignment: pw.CrossAxisAlignment.start,
   children: [
-  pw.Text("• ", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+  pw.Text("- ", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
   pw.Expanded(
   child: pw.Text(fullQuestion, style: const pw.TextStyle(fontSize: 10)),
   ),

@@ -132,16 +132,6 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
                         padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                         child: Row(
                           children: [
-                            _IconPillButton(
-                              icon: Icons.arrow_back_ios_new_rounded,
-                              onTap: () {
-                                Navigator.pushAndRemoveUntil(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const CasesScreen()),
-                                      (route) => false,
-                                );
-                              },
-                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -149,17 +139,24 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.dmSans(
-                                  fontSize: 16.5,
+                                  fontSize: 24,
                                   fontWeight: FontWeight.w900,
                                   color: AppColors.textPrimary,
+
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
                             // tiny status chip
-                            _SmallChip(
-                              text: pending ? "Computing…" : "Ready",
-                              tint: badgeTint,
+                            _IconPillButton(
+                              icon: Icons.close,
+                              onTap: () {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const CasesScreen()),
+                                      (route) => false,
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -196,26 +193,6 @@ class _InfectionAssessmentScreenState extends State<InfectionAssessmentScreen> {
                           icon: badgeIcon,
                           headline: headline,
                           description: description,
-                        ),
-                      ),
-                    ),
-
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                        child: _GlassSectionCard(
-                          title: "Recommendations",
-                          subtitle: pending
-                              ? "Please wait a moment while we finish the assessment."
-                              : "These are safety tips — not a diagnosis.",
-                          child: Column(
-                            children: [
-                              for (final r in recs) ...[
-                                _RecommendationRow(text: r),
-                                const SizedBox(height: 10),
-                              ],
-                            ],
-                          ),
                         ),
                       ),
                     ),
@@ -530,31 +507,6 @@ class _WhitePill extends StatelessWidget {
   }
 }
 
-class _SmallChip extends StatelessWidget {
-  const _SmallChip({required this.text, required this.tint});
-  final String text;
-  final Color tint;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: tint.withOpacity(0.12),
-        border: Border.all(color: tint.withOpacity(0.22)),
-      ),
-      child: Text(
-        text,
-        style: GoogleFonts.inter(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w900,
-          color: tint,
-        ),
-      ),
-    );
-  }
-}
 
 class _ErrorBanner extends StatelessWidget {
   const _ErrorBanner({required this.text});
@@ -639,8 +591,8 @@ class _AssessmentCard extends StatelessWidget {
             description,
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
-              fontSize: 12.8,
-              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
               color: AppColors.textSecondary,
               height: 1.4,
             ),
@@ -812,7 +764,7 @@ class _NoticeCard extends StatelessWidget {
             child: Text(
               text,
               style: GoogleFonts.inter(
-                fontSize: 12.2,
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF6B4B1E),
                 height: 1.35,

@@ -123,7 +123,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        "Daily Reminder Time",
+                        "Daily Reminder",
                         style: GoogleFonts.dmSans(
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
@@ -385,24 +385,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: Text("Wound Case details", style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
-                              ),
-                              FutureBuilder<_CaseReminder?>(
-                                key: _builderKey,
-                                future: _loadReminder(widget.caseId),
-                                builder: (context, remSnapshot) {
-                                  final hasReminder = remSnapshot.data?.enabled ?? false;
-                                  return _WhitePillButton(
-                                    onTap: () => _openReminderSheet(context: context, caseId: widget.caseId, caseTitle: displayTitle),
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.notifications_active_rounded, size: 18, color: AppColors.primaryColor,),
-                                        const SizedBox(width: 8),
-                                        Text(hasReminder ? "Edit reminder" : "Set reminder", style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primaryColor)),
-                                      ],
-                                    ),
-                                  );
-                                },
+                                child: Text("Wound Case details", style: GoogleFonts.dmSans(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                               ),
                             ],
                           ),
@@ -428,10 +411,10 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      "Wound Case overview",
+                                      "Wound Case Overview",
                                       style: GoogleFonts.dmSans(
                                         fontSize: 16,
-                                        fontWeight: FontWeight.w900,
+                                        fontWeight: FontWeight.w700,
                                         color: AppColors.textPrimary,
                                       ),
                                     ),
@@ -455,14 +438,16 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                                     Expanded(
                                       child: _InfoMini(
                                         icon: Icons.calendar_today_outlined,
-                                        label: startDateText,
+                                        title: "Start date",
+                                        value: startDateText,
                                       ),
                                     ),
                                     const SizedBox(width: 14),
                                     Expanded(
                                       child: _InfoMini(
                                         icon: Icons.access_time,
-                                        label: lastUpdatedText,
+                                        title: "Last Updated",
+                                        value: lastUpdatedText,
                                       ),
                                     ),
                                   ],
@@ -521,36 +506,55 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                                 ),
 
                                 const SizedBox(height: 14),
-
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _PrimaryActionButton(
-                                        label: "Download medical PDF",
-                                        icon: Icons.picture_as_pdf,
-                                        disabled: false,
-                                        onTap: () async {
-                                          try {
-                                            await PdfReportGenerator.generateAndPrintReportForCase(
-                                              caseId: widget.caseId,
-                                            );
-                                          } catch (e) {
-                                            if (!mounted) return;
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text("Failed to generate PDF: $e")),
-                                            );
-                                          }
-                                        },
-                                    )
-                                    )
-                                  ]
-                                ),
-
-
-                                const SizedBox(height: 10),
                               ],
                             ),
                           ),
+
+                          FutureBuilder<_CaseReminder?>(
+                            key: _builderKey,
+                            future: _loadReminder(widget.caseId),
+                            builder: (context, remSnapshot) {
+                              final hasReminder = remSnapshot.data?.enabled ?? false;
+                              return _WhitePillButton(
+                                onTap: () => _openReminderSheet(context: context, caseId: widget.caseId, caseTitle: displayTitle),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.notifications_active_rounded, size: 18, color: AppColors.primaryColor,),
+                                    const SizedBox(width: 8),
+                                    Text(hasReminder ? "Edit reminder" : "Set reminder", style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryColor)),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          Row(
+                              children: [
+                                Expanded(
+                                    child: _PrimaryActionButton(
+                                      label: "Download medical PDF",
+                                      icon: Icons.picture_as_pdf,
+                                      disabled: false,
+                                      onTap: () async {
+                                        try {
+                                          await PdfReportGenerator.generateAndPrintReportForCase(
+                                            caseId: widget.caseId,
+                                          );
+                                        } catch (e) {
+                                          if (!mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text("Failed to generate PDF: $e")),
+                                          );
+                                        }
+                                      },
+                                    )
+                                )
+                              ]
+                          ),
+
+
                         ],
                       ),
                     ),
@@ -847,25 +851,45 @@ class _FolderBubble extends StatelessWidget {
 }
 
 class _InfoMini extends StatelessWidget {
-  const _InfoMini({required this.icon, required this.label});
+  const _InfoMini({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
   final IconData icon;
-  final String label;
+  final String title;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: AppColors.textPrimary),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-            ),
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary.withOpacity(0.75),
           ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Icon(icon, size: 16, color: AppColors.textPrimary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
