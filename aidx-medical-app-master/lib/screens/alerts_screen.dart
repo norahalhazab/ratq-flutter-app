@@ -14,41 +14,6 @@ import '../utils/app_colors.dart';
 import '../widgets/bottom_nav.dart';
 import 'case_details_screen.dart';
 
-// ---------------- prefs model (same as settings) ----------------
-
-class CaseWhqReminder {
-  final String id;
-  final String caseId;
-  final String caseTitle;
-  final int hour;
-  final int minute;
-  final bool enabled;
-
-  const CaseWhqReminder({
-    required this.id,
-    required this.caseId,
-    required this.caseTitle,
-    required this.hour,
-    required this.minute,
-    required this.enabled,
-  });
-
-  TimeOfDay get time => TimeOfDay(hour: hour, minute: minute);
-
-  static CaseWhqReminder fromJson(Map<String, dynamic> j) {
-    return CaseWhqReminder(
-      id: (j['id'] ?? '').toString(),
-      caseId: (j['caseId'] ?? '').toString(),
-      caseTitle: (j['caseTitle'] ?? 'Case').toString(),
-      hour: (j['hour'] is int) ? j['hour'] as int : int.tryParse('${j['hour']}') ?? 20,
-      minute: (j['minute'] is int)
-          ? j['minute'] as int
-          : int.tryParse('${j['minute']}') ?? 0,
-      enabled: (j['enabled'] as bool?) ?? true,
-    );
-  }
-}
-
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
 
@@ -62,21 +27,17 @@ class _AlertsScreenState extends State<AlertsScreen> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
-  // dismissed cards
   final Set<String> _dismissedKeys = {};
 
   bool _loadingPrefs = true;
+  bool _loadingReminders = true;
   String? _error;
 
   StreamSubscription? _sub;
   List<_AlertItem> _items = [];
 
-  // ✅ read reminders from prefs (per case)
-  final List<CaseWhqReminder> _reminders = [];
-
-  // prefs keys
   static const _prefsKeyDismissed = 'alerts_dismissed_keys';
-  static const _prefsKeyReminders = 'case_whq_reminders_v1';
+  static String _reminderPrefsKey(String caseId) => 'whq_reminder_case_$caseId';
 
   @override
   void initState() {
@@ -91,160 +52,132 @@ class _AlertsScreenState extends State<AlertsScreen> {
   }
 
   Future<void> _init() async {
-    await _loadPrefs();
-    _listen();
+    await _loadDismissedPrefs();
+    _listenCasesAndBuildReminders();
   }
 
-  Future<void> _loadPrefs() async {
+  Future<void> _loadDismissedPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-
     final dismissed = prefs.getStringList(_prefsKeyDismissed) ?? <String>[];
-
-    // load reminders list
-    final raw = prefs.getString(_prefsKeyReminders);
-    final parsed = <CaseWhqReminder>[];
-    if (raw != null && raw.trim().isNotEmpty) {
-      try {
-        final list = jsonDecode(raw) as List<dynamic>;
-        for (final e in list) {
-          parsed.add(CaseWhqReminder.fromJson(Map<String, dynamic>.from(e as Map)));
-        }
-      } catch (_) {}
-    }
 
     if (!mounted) return;
     setState(() {
       _dismissedKeys
         ..clear()
         ..addAll(dismissed);
-      _reminders
-        ..clear()
-        ..addAll(parsed.where((r) => r.enabled));
       _loadingPrefs = false;
     });
   }
 
-  Future<void> _savePrefs() async {
+  Future<void> _saveDismissedPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_prefsKeyDismissed, _dismissedKeys.toList());
   }
 
   Future<void> _dismiss(String key) async {
-    setState(() => _dismissedKeys.add(key));
-    await _savePrefs();
+    _dismissedKeys.add(key);
+    await _saveDismissedPrefs();
   }
 
-  void _listen() {
+  void _listenCasesAndBuildReminders() {
     _sub?.cancel();
 
     final user = _auth.currentUser;
     if (user == null) {
       setState(() {
         _error = null;
-        _items = _buildWithWhqRows([]);
+        _loadingReminders = false;
+        _items = [];
       });
       return;
     }
 
-    // Stream cases ordered by lastUpdated
     final casesRef = _firestore
         .collection('users')
         .doc(user.uid)
         .collection('cases')
         .orderBy('lastUpdated', descending: true);
 
-    _sub = casesRef.snapshots().listen((snap) {
-      final infectionAlerts = <_AlertItem>[];
+    _sub = casesRef.snapshots().listen((snap) async {
+      try {
+        if (!mounted) return;
+        setState(() {
+          _error = null;
+          _loadingReminders = true;
+        });
 
-      for (final d in snap.docs) {
-        final data = d.data();
-        final caseTitle = _readCaseTitle(data);
+        final prefs = await SharedPreferences.getInstance();
+        final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-        // score priority: finalScore else infectionScore
-        final finalScore = _readInt(data['finalScore']);
-        final infectionScore = _readInt(data['infectionScore']);
-        final score = (finalScore != null && finalScore > 0) ? finalScore : (infectionScore ?? 0);
+        final built = <_AlertItem>[];
 
-        // threshold (your rule: >=4 is sign)
-        if (score < 4) continue;
+        for (final d in snap.docs) {
+          final data = d.data();
+          final caseId = d.id;
+          final caseTitle = _readCaseTitle(data);
 
-        final dt = _readDate(data['lastUpdated']) ??
-            _readDate(data['createdAt']) ??
-            _readDate(data['startDate']) ??
-            DateTime.now();
+          final raw = prefs.getString(_reminderPrefsKey(caseId));
+          if (raw == null || raw.trim().isEmpty) continue;
 
-        final key = 'infection:${d.id}';
-        if (_dismissedKeys.contains(key)) continue;
+          Map<String, dynamic> map;
+          try {
+            map = jsonDecode(raw) as Map<String, dynamic>;
+          } catch (_) {
+            continue;
+          }
 
-        final infectionText = (score >= 6)
-            ? "High sign of infection"
-            : "Warning sign of infection";
+          final enabled = (map['enabled'] as bool?) ?? false;
+          if (!enabled) continue;
 
-        infectionAlerts.add(
-          _AlertItem(
-            keyId: key,
-            type: _AlertType.infection,
-            title: "Infection Risk Detected",
-            subtitle: 'Case: $caseTitle • Please seek medical advice promptly.',
-            date: dt,
-            payload: d.id, // caseId
-            caseTitle: caseTitle,
-            score: score,
-            severityText: infectionText,
-          ),
-        );
+          final hour = (map['hour'] is int)
+              ? map['hour'] as int
+              : int.tryParse('${map['hour']}') ?? 20;
+          final minute = (map['minute'] is int)
+              ? map['minute'] as int
+              : int.tryParse('${map['minute']}') ?? 0;
+
+          final key = 'whqcase:$caseId:$today';
+          if (_dismissedKeys.contains(key)) continue;
+
+          built.add(
+            _AlertItem(
+              keyId: key,
+              type: _AlertType.whq,
+              title: "Daily WHQ Reminder",
+              subtitle: "Case: $caseTitle",
+              date: DateTime.now(),
+              payload: caseId,
+              caseTitle: caseTitle,
+              hour: hour,
+              minute: minute,
+            ),
+          );
+        }
+
+        // ✅ sort by hour/minute directly
+        built.sort((a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
+
+        if (!mounted) return;
+        setState(() {
+          _items = built;
+          _loadingReminders = false;
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _error = e.toString();
+          _items = [];
+          _loadingReminders = false;
+        });
       }
-
-      // newest first
-      infectionAlerts.sort((a, b) => b.date.compareTo(a.date));
-
-      if (!mounted) return;
-      setState(() {
-        _error = null;
-        _items = _buildWithWhqRows(infectionAlerts);
-      });
     }, onError: (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
-        _items = _buildWithWhqRows([]);
+        _items = [];
+        _loadingReminders = false;
       });
     });
-  }
-
-  // ✅ Insert WHQ reminder cards (per case, from prefs).
-  // Each reminder appears daily; swipe dismiss hides it for today only.
-  List<_AlertItem> _buildWithWhqRows(List<_AlertItem> infection) {
-    final list = <_AlertItem>[...infection];
-
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    // Put all enabled reminders at top, sorted by time
-    final remindersSorted = [..._reminders]
-      ..sort((a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
-
-    // insert in reverse so earlier time stays closer to top
-    for (final r in remindersSorted.reversed) {
-      final key = 'whqcase:${r.id}:$today';
-      if (_dismissedKeys.contains(key)) continue;
-
-      list.insert(
-        0,
-        _AlertItem(
-          keyId: key,
-          type: _AlertType.whq,
-          title: "Daily WHQ Reminder",
-          subtitle: "Case: ${r.caseTitle}",
-          date: DateTime.now(),
-          payload: r.caseId, // ✅ caseId
-          caseTitle: r.caseTitle,
-          score: 0,
-          severityText: "Scheduled at ${r.time.format(context)}",
-        ),
-      );
-    }
-
-    return list;
   }
 
   @override
@@ -287,13 +220,14 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-
                   Expanded(
                     child: (user == null)
                         ? _emptyState()
                         : (_error != null)
                         ? _errorState(_error!)
-                        : (_items.isEmpty ? _emptyState() : _list()),
+                        : (_loadingReminders
+                        ? const Center(child: CircularProgressIndicator())
+                        : (_items.isEmpty ? _emptyState() : _list())),
                   ),
                 ],
               ),
@@ -310,6 +244,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final item = _items[i];
+        final t = TimeOfDay(hour: item.hour, minute: item.minute);
 
         return Dismissible(
           key: ValueKey(item.keyId),
@@ -323,11 +258,17 @@ class _AlertsScreenState extends State<AlertsScreen> {
             ),
             child: const Icon(Icons.delete, color: Colors.white),
           ),
-          onDismissed: (_) => _dismiss(item.keyId),
+          onDismissed: (_) async {
+            if (!mounted) return;
+            setState(() {
+              _items.removeWhere((x) => x.keyId == item.keyId);
+            });
+            await _dismiss(item.keyId);
+          },
           child: _NotificationCard(
             item: item,
+            timeText: "Scheduled at ${t.format(context)}",
             onTap: () {
-              // ✅ Both WHQ + Infection open Case Details
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -370,7 +311,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Text(
-          "Failed to load alerts.\n\n$msg",
+          "Failed to load reminders.\n\n$msg",
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
             fontSize: 12.8,
@@ -383,10 +324,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
     );
   }
 
-  // ---------------- Helpers ----------------
-
   String _readCaseTitle(Map<String, dynamic> data) {
-    // same priority as CaseDetails
     final raw = (data['caseName'] ?? data['title'] ?? '').toString().trim();
     if (raw.isNotEmpty) return raw;
 
@@ -401,14 +339,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
     if (v is int) return v;
     if (v is num) return v.toInt();
     return int.tryParse(v.toString());
-  }
-
-  DateTime? _readDate(dynamic v) {
-    if (v == null) return null;
-    if (v is Timestamp) return v.toDate();
-    if (v is DateTime) return v;
-    if (v is String) return DateTime.tryParse(v);
-    return null;
   }
 }
 
@@ -426,11 +356,7 @@ class _BlueGlassyBackground extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFEAF5FB),
-                Color(0xFFDCEEF7),
-                Color(0xFFF7FBFF),
-              ],
+              colors: [Color(0xFFEAF5FB), Color(0xFFDCEEF7), Color(0xFFF7FBFF)],
             ),
           ),
         ),
@@ -475,7 +401,7 @@ class _Blob extends StatelessWidget {
 
 /* ===================== Card UI ===================== */
 
-enum _AlertType { infection, whq }
+enum _AlertType { whq }
 
 class _AlertItem {
   final String keyId;
@@ -483,10 +409,10 @@ class _AlertItem {
   final String title;
   final String subtitle;
   final DateTime date;
-  final String payload; // ✅ ALWAYS caseId now
+  final String payload;
   final String caseTitle;
-  final int score;
-  final String severityText;
+  final int hour;
+  final int minute;
 
   _AlertItem({
     required this.keyId,
@@ -496,28 +422,28 @@ class _AlertItem {
     required this.date,
     required this.payload,
     required this.caseTitle,
-    required this.score,
-    required this.severityText,
+    required this.hour,
+    required this.minute,
   });
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item, required this.onTap});
+  const _NotificationCard({
+    required this.item,
+    required this.timeText,
+    required this.onTap,
+  });
 
   final _AlertItem item;
+  final String timeText;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isInfection = item.type == _AlertType.infection;
+    final iconTint = AppColors.primaryColor;
+    final icon = Icons.assignment_rounded;
 
-    final iconTint = isInfection ? AppColors.errorColor : AppColors.primaryColor;
-    final icon = isInfection ? Icons.warning_rounded : Icons.assignment_rounded;
-
-    final Color chipColor = !isInfection
-        ? AppColors.primaryColor
-        : (item.score >= 6 ? AppColors.errorColor : AppColors.warningColor);
-
+    final chipColor = AppColors.primaryColor;
     final dateText = DateFormat('yyyy-MM-dd').format(item.date);
 
     return InkWell(
@@ -542,13 +468,10 @@ class _NotificationCard extends StatelessWidget {
           children: [
             _IconBadge(tint: iconTint, icon: icon),
             const SizedBox(width: 12),
-
-            // main content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // title row + date
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -573,9 +496,7 @@ class _NotificationCard extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 4),
-
                   Text(
                     item.subtitle,
                     style: GoogleFonts.inter(
@@ -585,10 +506,7 @@ class _NotificationCard extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
-                  // ✅ chip alone
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Container(
@@ -599,7 +517,7 @@ class _NotificationCard extends StatelessWidget {
                         border: Border.all(color: chipColor.withOpacity(0.22)),
                       ),
                       child: Text(
-                        item.severityText,
+                        timeText,
                         style: GoogleFonts.inter(
                           fontSize: 11.6,
                           fontWeight: FontWeight.w900,
@@ -608,14 +526,10 @@ class _NotificationCard extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
-                  // ✅ action line UNDER the chip (full, clear)
                   Row(
                     children: [
-                      const Icon(Icons.arrow_forward_rounded,
-                          size: 18, color: AppColors.primaryColor),
+                      const Icon(Icons.arrow_forward_rounded, size: 18, color: AppColors.primaryColor),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(

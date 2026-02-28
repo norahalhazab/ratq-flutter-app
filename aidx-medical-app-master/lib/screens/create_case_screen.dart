@@ -185,7 +185,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                         child: Center(
                           child: Text(
                             "Create Wound",
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.dmSans(
                               fontSize: 28,
                               fontWeight: FontWeight.w900,
                               color: AppColors.textPrimary,
@@ -510,7 +510,7 @@ class _BlueGlassDateBox extends StatelessWidget {
                   label,
                   style: GoogleFonts.inter(
                     fontSize: 14, // Small info
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textSecondary,
                   ),
                 ),
