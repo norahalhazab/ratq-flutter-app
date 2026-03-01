@@ -47,10 +47,10 @@ void main() async {
     ),
   );
 
-  SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.edgeToEdge,
-    overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
-  );
+  //SystemChrome.setEnabledSystemUIMode(
+  //  SystemUiMode.edgeToEdge,
+  //  overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
+  //);
 
   try {
     if (Firebase.apps.isEmpty) {
