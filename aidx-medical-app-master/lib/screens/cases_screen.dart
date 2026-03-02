@@ -277,37 +277,21 @@ class _CasesScreenState extends State<CasesScreen> {
                 return Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
                       child: Row(
                         children: [
-                          _AvatarButton(
-                            letter: (userName.isNotEmpty
-                                ? userName.characters.first
-                                : "U")
-                                .toUpperCase(),
-                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "Hello",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  userName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  "Wound cases",
                                   style: GoogleFonts.dmSans(
-                                    fontSize: 16,
+                                    fontSize: 28,
                                     fontWeight: FontWeight.w900,
                                     color: AppColors.textPrimary,
+                                    height: 1.0,
                                   ),
                                 ),
                               ],
@@ -329,38 +313,10 @@ class _CasesScreenState extends State<CasesScreen> {
                       ),
                     ),
 
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "Wound cases",
-                          style: GoogleFonts.dmSans(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary,
-                            height: 1.0,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 6, 18, 10),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "Track your wound healing progress",
-                          style: GoogleFonts.inter(
-                            fontSize: 13.2,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
+
 
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                       child: Row(
                         children: [
                           Expanded(
@@ -548,15 +504,6 @@ class _CasesScreenState extends State<CasesScreen> {
                                       ),
                                     );
                                   },
-                                  onDashboard: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => Homepage(
-                                        ),
-                                      ),
-                                    );
-                                  },
                                 ),
                               );
                             },
@@ -702,7 +649,7 @@ class _HeaderPill extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
               color: AppColors.primaryColor,
             ),
@@ -850,7 +797,6 @@ class _WoundCleanCard extends StatelessWidget {
     required this.isHighRisk,
     required this.assessment,
     required this.onDetails,
-    required this.onDashboard,
     this.onStartDaily,
   });
 
@@ -865,7 +811,6 @@ class _WoundCleanCard extends StatelessWidget {
   final String assessment;
 
   final VoidCallback onDetails;
-  final VoidCallback onDashboard;
   final VoidCallback? onStartDaily;
 
   @override
@@ -910,9 +855,9 @@ class _WoundCleanCard extends StatelessWidget {
                         caseTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
                         ),
                       ),
@@ -921,7 +866,7 @@ class _WoundCleanCard extends StatelessWidget {
                       Text(
                         "Wound $caseNo • $dayLabel",
                         style: GoogleFonts.inter(
-                          fontSize: 12.2,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textMuted,
                         ),
@@ -935,25 +880,9 @@ class _WoundCleanCard extends StatelessWidget {
 
             const SizedBox(height: 12),
             Divider(height: 1, color: AppColors.dividerColor.withOpacity(0.9)),
-            const SizedBox(height: 12),
 
-            Row(
-              children: [
-                Expanded(
-                  child: _InfoMini(
-                    icon: Icons.calendar_today_outlined,
-                    label: startDate,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _InfoMini(
-                    icon: Icons.access_time,
-                    label: lastUpdated,
-                  ),
-                ),
-              ],
-            ),
+
+
 
             const SizedBox(height: 12),
 
@@ -967,7 +896,7 @@ class _WoundCleanCard extends StatelessWidget {
                       : AppColors.primaryColor.withOpacity(0.10),
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
               child: Row(
                 children: [
                   Expanded(
@@ -976,9 +905,9 @@ class _WoundCleanCard extends StatelessWidget {
                       children: [
                         Text(
                           "Daily Check",
-                          style: GoogleFonts.dmSans(
+                          style: GoogleFonts.inter(
                             fontSize: 16,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
                         ),
@@ -1015,22 +944,6 @@ class _WoundCleanCard extends StatelessWidget {
                     icon: Icons.remove_red_eye_outlined,
                     gradient: AppColors.primaryGradient,
                     onTap: onDetails,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _BlueActionButton(
-                    label: "View Dashboard",
-                    icon: Icons.bar_chart_rounded,
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF63A2BF),
-                        Color(0xFF3B7691),
-                      ],
-                    ),
-                    onTap: onDashboard,
                   ),
                 ),
               ],
@@ -1151,13 +1064,14 @@ class _BlueActionButton extends StatelessWidget {
     required this.icon,
     required this.gradient,
     required this.onTap,
+    this.fontSize = 16,
   });
 
   final String label;
   final IconData icon;
   final Gradient gradient;
   final VoidCallback onTap;
-
+  final double fontSize;
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -1184,8 +1098,8 @@ class _BlueActionButton extends StatelessWidget {
             Text(
               label,
               style: GoogleFonts.inter(
-                fontSize: 12.8,
-                fontWeight: FontWeight.w900,
+                fontSize: fontSize,
+                fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
             ),
@@ -1377,8 +1291,8 @@ class _MiniPill extends StatelessWidget {
         child: Text(
           text,
           style: GoogleFonts.inter(
-            fontSize: 12.8,
-            fontWeight: FontWeight.w900,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
             color: tc,
           ),
         ),

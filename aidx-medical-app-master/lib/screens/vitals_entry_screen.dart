@@ -3,11 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
+
 import '../services/smart_watch_simulator_service.dart';
 import '../widgets/bottom_nav.dart';
 import 'Infection_Assesment.dart';
-import 'cases_screen.dart';
-
 
 class VitalsEntryArgs {
   final String caseId;
@@ -36,34 +35,11 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
 
   // state
   bool _saving = false;
-  String _tempSource = "manual"; // "manual" or "watch"
 
-  // watch check state (NEW)
-  bool _checkingWatch = true;
-  bool _watchConnected = false;
   String? _tempError;
   final TextEditingController _tempCtrl = TextEditingController();
 
   SmartWatchSimulatorService get _service => SmartWatchSimulatorService.instance;
-
-  @override
-  void initState() {
-    super.initState();
-    _simulateWatchCheck();
-  }
-
-  Future<void> _simulateWatchCheck() async {
-    setState(() => _checkingWatch = true);
-
-    // UX: give it a moment so it feels like a real check
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (!mounted) return;
-    setState(() {
-      _watchConnected = _service.isConnected;
-      _checkingWatch = false;
-    });
-  }
 
   @override
   void dispose() {
@@ -83,77 +59,26 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
     return null;
   }
 
-  void _selectManual() {
-    setState(() {
-      _tempSource = "manual";
-      _tempCtrl.clear(); // ✅ clear value when switching to manual
-    });
-  }
-
-  void _useWatchTemp() {
-    // Don’t allow while checking
-    if (_checkingWatch) return;
-
-    if (!_watchConnected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Smart Watch not connected")),
-      );
-      return;
-    }
-
-    setState(() {
-      _tempSource = "watch";
-      _tempCtrl.text = _service.temperature.toStringAsFixed(1);
-    });
-  }
-
-  Map<String, dynamic> _buildVitalsMap() {
-    final enteredTemp = _parseTemp();
-
-    return {
-      "temperature": enteredTemp,
-      // You can keep saving these even if you don't show them:
-      "heartRate": _service.heartRate,
-      "bloodPressure": _service.bloodPressure,
-      "fromWatch": _service.isConnected,
-      "tempSource": _tempSource,
-      "capturedAt": FieldValue.serverTimestamp(),
-    };
-  }
-
-
-  //Saving vitals into WHQ--vitals
+  // Saving vitals into WHQ--vitals
   Future<bool> _saveVitals() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
 
-    double? tempToSave;
-
-    if (_tempSource == "watch") {
-      if (!_service.isConnected) {
-        // بدون SnackBar (عشان ما يطلع شيء)
-        setState(() => _tempError = "Smart Watch not connected");
-        return false;
-      }
-      tempToSave = _service.temperature;
-    } else {
-      tempToSave = _parseTemp();
-      final err = _validateTemp(tempToSave);
-      if (err != null) {
-        setState(() => _tempError = err);
-        return false;
-      }
+    final tempToSave = _parseTemp();
+    final err = _validateTemp(tempToSave);
+    if (err != null) {
+      setState(() => _tempError = err);
+      return false;
     }
 
     setState(() => _saving = true);
 
     try {
       final vitalsData = <String, dynamic>{
-        "temperature": tempToSave,
-        "heartRate": _service.heartRate,
-        "bloodPressure": _service.bloodPressure,
+        "temperature": tempToSave, // ✅ manual only
+        "heartRate": _service.heartRate, // ✅ from watch service
+        "bloodPressure": _service.bloodPressure, // ✅ from watch service
         "fromWatch": _service.isConnected,
-        "tempSource": _tempSource,
         "capturedAt": FieldValue.serverTimestamp(),
       };
 
@@ -180,10 +105,8 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: Colors.transparent,
-      // 1. Keep the navigation bar
       bottomNavigationBar: const AppBottomNav(currentIndex: 1),
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -193,298 +116,183 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
         title: Text(
           "Vitals",
           style: GoogleFonts.dmSans(
-            fontSize: 18,
+            fontSize: 28, // ✅ requested
             fontWeight: FontWeight.w800,
             color: const Color(0xFF0F172A),
           ),
         ),
+        centerTitle: true,
       ),
       body: Stack(
         children: [
-
           const _BlueGlassyBackground(),
 
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 22),
-              child: Column(
-                children: [
-                  // --------- Temperature source options ----------
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.92), // ✅ more glassy
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: border),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 22),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight, // ✅ fill full phone height
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "How would you like to enter your temperature?",
-                          style: GoogleFonts.inter(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0F172A),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        children: [
+                          // ---------------- Temperature input ----------------
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.92),
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(color: border),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Temperature (°C)",
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                TextField(
+                                  controller: _tempCtrl,
+                                  keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                                  onChanged: (_) {
+                                    if (_tempError != null) {
+                                      setState(() => _tempError = null);
+                                    }
+                                  },
+                                  decoration: InputDecoration(
+                                    hintText: "e.g. 36.7",
+                                    filled: true,
+                                    fillColor: const Color(0xFFF8FAFC),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 14,
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide(
+                                        color: _tempError != null
+                                            ? Colors.red
+                                            : border,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide(
+                                        color: _tempError != null
+                                            ? Colors.red
+                                            : primary,
+                                        width: 1.6,
+                                      ),
+                                    ),
+                                  ),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                if (_tempError != null) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _tempError!,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _sourceChip(
-                                label: "Manual",
-                                selected: _tempSource == "manual",
-                                onTap: _selectManual,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _sourceChip(
-                                label: "Smart Watch",
-                                selected: _tempSource == "watch",
-                                onTap: _useWatchTemp,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
 
-                  const SizedBox(height: 14),
+                          const Spacer(), // ✅ pushes button down nicely if screen is tall
 
-                  // ✅ Watch connection status ONLY
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: cardBg.withOpacity(0.92), // ✅ blend with background
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: Row(
-                      children: [
-                        if (_checkingWatch) ...[
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              "Checking smart watch connection…",
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF0F172A),
+                          //----------------------------Finish Button-----------------
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed: _saving
+                                  ? null
+                                  : () async {
+                                if (_tempCtrl.text.trim().isEmpty) {
+                                  setState(() {
+                                    _tempError = "Please enter temperature";
+                                  });
+                                  return;
+                                }
+
+                                setState(() => _tempError = null);
+
+                                final success = await _saveVitals();
+                                if (!context.mounted) return;
+                                if (!success) return;
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        InfectionAssessmentScreen(
+                                          caseId: widget.args.caseId,
+                                          whqResponseId:
+                                          widget.args.whqResponseId,
+                                        ),
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                elevation: 0,
                               ),
-                            ),
-                          ),
-                        ] else ...[
-                          Icon(
-                            _watchConnected ? Icons.check_circle : Icons.error_outline,
-                            color: _watchConnected ? Colors.green : Colors.orange,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _watchConnected
-                                  ? "Smart Watch Connected"
-                                  : "Smart Watch Not Connected",
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF0F172A),
+                              child: _saving
+                                  ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                                  : Text(
+                                "Finish",
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-
-
-                  // ---------------- Temperature input ----------------
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.92),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Temperature (°C)",
-                          style: GoogleFonts.inter(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: _tempCtrl,
-                          keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                          onChanged: (_) {
-                            if (_tempError != null) {
-                              setState(() => _tempError = null);
-                            }
-                          },
-                          decoration: InputDecoration(
-                            hintText: "e.g. 36.7",
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 14,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: _tempError != null ? Colors.red : border,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: _tempError != null ? Colors.red : primary,
-                                width: 1.6,
-                              ),
-                            ),
-                          ),
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF0F172A),
-                          ),
-                        ),
-
-                        if (_tempError != null) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            _tempError!,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.red,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-
-                  //----------------------------Finish Button-----------------
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: _saving
-                          ? null
-                          : () async {
-                        if (_tempSource == "manual" && _tempCtrl.text.trim().isEmpty) {
-                          setState(() {
-                            _tempError = "Please enter temperature";
-                          });
-                          return;
-                        }
-
-                        setState(() {
-                          _tempError = null;
-                        });
-
-                        final success = await _saveVitals();
-                        if (!context.mounted) return;
-
-                        if (!success) return; // ✅ لا تنتقل إذا ما انحفظت
-
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => InfectionAssessmentScreen(
-                              caseId: widget.args.caseId,
-                              whqResponseId: widget.args.whqResponseId,
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: _saving
-                          ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                          : Text(
-                        "Finish",
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
       ),
     );
   }
-
-  Widget _sourceChip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOutCubic,
-        height: 44,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? primary : border),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: selected ? Colors.white : const Color(0xFF0F172A),
-          ),
-        ),
-      ),
-    );
-  }
 }
+
 class _BlueGlassyBackground extends StatelessWidget {
   const _BlueGlassyBackground();
 
@@ -505,15 +313,15 @@ class _BlueGlassyBackground extends StatelessWidget {
             ),
           ),
         ),
-        Positioned(
+        const Positioned(
           top: -170,
           left: -150,
-          child: _Blob(size: 520, color: Color(0xFFBFDCEB)), // approx secondary opacity
+          child: _Blob(size: 520, color: Color(0xFFBFDCEB)),
         ),
-        Positioned(
+        const Positioned(
           top: 120,
           right: -180,
-          child: _Blob(size: 560, color: Color(0xFF3B7691)), // primary
+          child: _Blob(size: 560, color: Color(0xFF3B7691)),
         ),
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
