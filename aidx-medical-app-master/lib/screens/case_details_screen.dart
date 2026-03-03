@@ -46,6 +46,13 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
       return null;
     }
   }
+  late Future<_CaseReminder?> _reminderFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reminderFuture = _loadReminder(widget.caseId);
+  }
 
   Future<void> _saveReminder(String caseId, _CaseReminder r) async {
     final prefs = await SharedPreferences.getInstance();
@@ -270,7 +277,10 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                           );
 
                           if (mounted) {
-                            setState(() => _builderKey = UniqueKey());
+                            setState(() {
+                              _builderKey = UniqueKey();
+                              _reminderFuture = _loadReminder(widget.caseId);
+                            });
                           }
 
                           if (parentCtx.mounted) {
@@ -312,104 +322,117 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
       ) async {
     final initialText =
     currentDisplayTitle.startsWith("Wound ") ? "" : currentDisplayTitle;
+
     final ctrl = TextEditingController(text: initialText);
 
-    final result = await showDialog<String?>(
-      context: context,
-      useRootNavigator: true,
-      builder: (ctx) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      "Edit case name",
-                      style: GoogleFonts.dmSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
+    String? result;
+    try {
+      result = await showDialog<String>(
+        context: context,
+        useRootNavigator: true,
+        builder: (ctx) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        "Edit case name",
+                        style: GoogleFonts.dmSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.pop(ctx, null),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: ctrl,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: "Example: Left knee",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx), // cancel
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx, ctrl.text),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryColor,
-                      shape: RoundedRectangleBorder(
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: ctrl,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: "Example: Left knee",
+                      border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: Text(
-                      "Save",
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, ctrl.text),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        "Save",
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Leave empty to use Wound $fallbackNo.",
-                  style: GoogleFonts.inter(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textMuted,
+                  const SizedBox(height: 6),
+                  Text(
+                    "Leave empty to use Wound $fallbackNo.",
+                    style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textMuted,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
-
-    ctrl.dispose();
-    if (result == null) return;
-
-    final newName = result.trim();
-    if (!context.mounted) return;
-
-    if (newName.isEmpty) {
-      await caseRef.update({
-        'caseName': FieldValue.delete(),
-        'title': FieldValue.delete(),
-        'lastUpdated': FieldValue.serverTimestamp(),
+          );
+        },
+      );
+    } finally {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ctrl.dispose();
       });
-      return;
     }
 
-    await caseRef.update({
-      'caseName': newName,
-      'title': newName,
-      'lastUpdated': FieldValue.serverTimestamp(),
-    });
+    if (!context.mounted) return;
+    if (result == null) return; // user closed/cancelled
+
+    final newName = result.trim();
+
+    try {
+      if (newName.isEmpty) {
+        await caseRef.update({
+          'caseName': FieldValue.delete(),
+          'title': FieldValue.delete(),
+          'lastUpdated': FieldValue.serverTimestamp(),
+        });
+      } else {
+        await caseRef.update({
+          'caseName': newName,
+          'title': newName,
+          'lastUpdated': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to update case name: $e")),
+      );
+    }
   }
 
   @override
@@ -525,31 +548,45 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                           ),
                           const SizedBox(height: 14),
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               _FolderBubble(tint: assessTint),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   displayTitle,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textPrimary,
-                                  ),
+                                  style: GoogleFonts.dmSans(fontSize: 22, fontWeight: FontWeight.w900),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              _WhitePillButton(
-                                onTap: () => _editCaseName(
-                                  context,
-                                  caseRef,
-                                  displayTitle,
-                                  (fallbackNo == 0 ? 1 : fallbackNo),
-                                ),
-                                child: const Icon(
-                                  Icons.edit_outlined,
-                                  size: 18,
-                                  color: AppColors.textPrimary,
-                                ),
+                              const SizedBox(width: 10),
+
+                              // Edit name pill
+                              _RoundIconButton(
+                                icon: Icons.edit_rounded,
+                                onTap: () async {
+                                  await _editCaseName(context, caseRef, displayTitle, (fallbackNo == 0 ? 1 : fallbackNo));
+                                },
+                              ),
+
+                              const SizedBox(width: 10),
+
+                              // Reminder expandable bell
+                              FutureBuilder<_CaseReminder?>(
+                                key: _builderKey,
+                                future: _reminderFuture,
+                                builder: (context, remSnapshot) {
+                                  final hasReminder = remSnapshot.data?.enabled ?? false;
+
+                                  return _ReminderBellExpandable(
+                                    hasReminder: hasReminder,
+                                    onPressed: () => _openReminderSheet(
+                                      context: context,
+                                      caseId: widget.caseId,
+                                      caseTitle: displayTitle,
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -662,38 +699,6 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                                 const SizedBox(height: 14),
                               ],
                             ),
-                          ),
-                          FutureBuilder<_CaseReminder?>(
-                            key: _builderKey,
-                            future: _loadReminder(widget.caseId),
-                            builder: (context, remSnapshot) {
-                              final hasReminder = remSnapshot.data?.enabled ?? false;
-                              return _WhitePillButton(
-                                onTap: () => _openReminderSheet(
-                                  context: context,
-                                  caseId: widget.caseId,
-                                  caseTitle: displayTitle,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.notifications_active_rounded,
-                                      size: 18,
-                                      color: AppColors.primaryColor,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      hasReminder ? "Edit reminder" : "Set reminder",
-                                      style: GoogleFonts.inter(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primaryColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
                           ),
                           const SizedBox(height: 10),
                           Row(
@@ -830,7 +835,32 @@ class _Blob extends StatelessWidget {
 }
 
 /* ===================== Reusable UI ===================== */
+class _FolderBubble extends StatelessWidget {
+  const _FolderBubble({required this.tint});
+  final Color tint;
 
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            tint.withOpacity(0.20),
+            tint.withOpacity(0.10),
+            Colors.white.withOpacity(0.70),
+          ],
+        ),
+        border: Border.all(color: AppColors.dividerColor.withOpacity(0.85)),
+      ),
+      child: Icon(Icons.folder_outlined, color: tint),
+    );
+  }
+}
 class _WhitePillButton extends StatelessWidget {
   const _WhitePillButton({required this.child, required this.onTap});
   final Widget child;
@@ -920,29 +950,91 @@ class _GlassyCard extends StatelessWidget {
   }
 }
 
-class _FolderBubble extends StatelessWidget {
-  const _FolderBubble({required this.tint});
-  final Color tint;
+class _ReminderBellExpandable extends StatefulWidget {
+  const _ReminderBellExpandable({
+    required this.hasReminder,
+    required this.onPressed,
+  });
+
+  final bool hasReminder;
+  final VoidCallback onPressed;
+
+  @override
+  State<_ReminderBellExpandable> createState() => _ReminderBellExpandableState();
+}
+
+class _ReminderBellExpandableState extends State<_ReminderBellExpandable> {
+  bool _hovered = false;
+  bool _toggledOpen = false;
+
+  bool get _expanded => _hovered || _toggledOpen;
+
+  void _toggleOpen() => setState(() => _toggledOpen = !_toggledOpen);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            tint.withOpacity(0.20),
-            tint.withOpacity(0.10),
-            Colors.white.withOpacity(0.70),
-          ],
+    final label = widget.hasReminder ? "Edit reminder" : "Set reminder";
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
-        border: Border.all(color: AppColors.dividerColor.withOpacity(0.85)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: () {
+            // Mobile-friendly: first tap expands, second tap triggers action
+            if (!_expanded) {
+              _toggleOpen();
+              return;
+            }
+            widget.onPressed();
+            setState(() => _toggledOpen = false);
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.hasReminder ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
+                size: 18,
+                color: AppColors.primaryColor,
+              ),
+
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 150),
+                transitionBuilder: (child, anim) => SizeTransition(
+                  sizeFactor: anim,
+                  axis: Axis.horizontal,
+                  child: FadeTransition(opacity: anim, child: child),
+                ),
+                child: _expanded
+                    ? Row(
+                  key: const ValueKey("label"),
+                  children: [
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                  ],
+                )
+                    : const SizedBox(key: ValueKey("empty")),
+              ),
+            ],
+          ),
+        ),
       ),
-      child: Icon(Icons.folder_outlined, color: tint),
     );
   }
 }
@@ -1110,7 +1202,42 @@ class _PrimaryActionButton extends StatelessWidget {
 }
 
 /* ===================== Bottom red bar ===================== */
+class _RoundIconButton extends StatelessWidget {
+  const _RoundIconButton({
+    required this.icon,
+    required this.onTap,
+    this.iconColor,
+    this.size = 42,
+  });
 
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color? iconColor;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: _WhitePill(
+        radius: 999,
+        padding: EdgeInsets.zero, // ✅ important: true circle
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: Icon(
+              icon,
+              size: 18,
+              color: iconColor ?? AppColors.primaryColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 class _BottomDangerBar extends StatelessWidget {
   const _BottomDangerBar({
     required this.disabled,

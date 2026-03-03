@@ -99,6 +99,53 @@ class PdfReportGenerator {
           .collection('whqResponses')
           .get();
     }
+    DateTime? _parseDate(dynamic d) {
+      if (d == null) return null;
+      if (d is Timestamp) return d.toDate();
+      if (d is DateTime) return d;
+      return DateTime.tryParse(d.toString());
+    }
+
+    final List<Map<String, dynamic>> allImages = [];
+
+    for (final doc in responses.docs) {
+      final data = doc.data();
+      final img = data['image'];
+
+      if (img is Map<String, dynamic>) {
+        final url = img['url']?.toString();
+        if (url != null && url.trim().isNotEmpty) {
+          allImages.add({
+            "url": url.trim(),
+            "date": _parseDate(img['date'] ?? data['createdAt']),
+          });
+        }
+      }
+    }
+
+// sort by date (oldest -> newest)
+    allImages.sort((a, b) {
+      final da = a['date'] as DateTime?;
+      final db = b['date'] as DateTime?;
+      if (da == null && db == null) return 0;
+      if (da == null) return -1;
+      if (db == null) return 1;
+      return da.compareTo(db);
+    });
+
+    final List<Map<String, dynamic>> loadedImages = [];
+
+    for (final img in allImages) {
+      try {
+        final provider = await networkImage(img['url'] as String);
+        loadedImages.add({
+          ...img,
+          "provider": provider,
+        });
+      } catch (_) {
+      }
+    }
+
 
     // -------- Assessment status from latest "results" --------
     String assessmentStatus = "No records found";
@@ -167,6 +214,7 @@ class PdfReportGenerator {
       caseName: caseName,
       caseStartDate: caseStartDate,
       assessmentStatus: assessmentStatus,
+      images: loadedImages,
     );
   }
 
@@ -180,6 +228,7 @@ class PdfReportGenerator {
     required String caseName,
     required String caseStartDate,
     required String assessmentStatus,
+    required List<Map<String, dynamic>> images,
   }) async {
   final pdf = pw.Document();
 
@@ -206,152 +255,208 @@ class PdfReportGenerator {
   final bool isHighRisk = assessmentStatus.contains("High sign");
   final PdfColor statusColor = isHighRisk ? PdfColors.red : PdfColors.green;
 
+
   pdf.addPage(
-  pw.Page(
-  pageFormat: PdfPageFormat.a4,
-  margin: const pw.EdgeInsets.all(32),
-  build: (pw.Context context) {
-  return pw.Column(
-  crossAxisAlignment: pw.CrossAxisAlignment.start,
-  children: [
-  // Header
-  pw.Row(
-  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-  children: [
-  pw.Column(
-  crossAxisAlignment: pw.CrossAxisAlignment.start,
-  children: [
-  pw.Text("WOUND ASSESSMENT SUMMARY",
-  style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-  pw.Text("Clinical Documentation - Patient Report",
-  style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-  pw.Text("This report provides a summary of the data recorded throughout the patient's monitoring period during routine daily checkups.",
-  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
-  ),
-  ],
-  ),
-  pw.Text("DATE: ${DateTime.now().toString().split(' ')[0]}",
-  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-  ],
-  ),
-  pw.SizedBox(height: 10),
-  pw.Divider(thickness: 1),
-  pw.SizedBox(height: 15),
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(32),
 
-  pw.Row(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      // LEFT COLUMN
-      pw.Expanded(
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            _pdfRow("Patient Name:", patientFullName),
-            _pdfRow("Date of Birth:", patientDob),
-          ],
-        ),
+      // ✅ BEST: footer always at bottom of every page
+      footer: (context) => pw.Column(
+        children: [
+          pw.Divider(thickness: 0.5, color: PdfColors.grey400),
+          pw.Center(
+            child: pw.Text(
+              "Consult a healthcare provider for clinical diagnosis.",
+              style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+            ),
+          ),
+        ],
       ),
 
-      pw.SizedBox(width: 20),
-
-      // RIGHT COLUMN
-      pw.Expanded(
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
+      build: (pw.Context context) => [
+        // Header
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            _pdfRow("Case Name:", caseName),
-            _pdfRow("Case Start Date:", caseStartDate),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text("WOUND ASSESSMENT SUMMARY",
+                    style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                pw.Text("Clinical Documentation - Patient Report",
+                    style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                pw.Text(
+                  "This report provides a summary of the data recorded throughout the patient's monitoring period during routine daily checkups.",
+                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+                ),
+              ],
+            ),
+            pw.Text(
+              "DATE: ${DateTime.now().toString().split(' ')[0]}",
+              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+            ),
           ],
         ),
-      ),
-    ],
-  ),
+        pw.SizedBox(height: 10),
+        pw.Divider(thickness: 1),
+        pw.SizedBox(height: 15),
 
-  pw.SizedBox(height: 20),
-  _sectionHeader("I. CLINICAL VITALS (AVERAGED)"),
-  pw.Table(
-  border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-  children: [
-  pw.TableRow(
-  decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-  children: [
-  _tableCell("Vital Sign", isHeader: true),
-  _tableCell("Average Value", isHeader: true),
-  _tableCell("Reference Range", isHeader: true),
-  ],
-  ),
-  _tableRow("Body Temperature", "${vitals['temperature']}°C", "36.5 - 37.5°C"),
-  _tableRow("Heart Rate", "${vitals['heartRate']} BPM", "60 - 100 BPM"),
-  _tableRow("Blood Pressure", "${vitals['bloodPressure']}", "120/80 mmHg"),
-  ],
-  ),
+        // Patient/case info in two columns
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  _pdfRow("Patient Name:", patientFullName),
+                  _pdfRow("Date of Birth:", patientDob),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 20),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  _pdfRow("Case Name:", caseName),
+                  _pdfRow("Case Start Date:", caseStartDate),
+                ],
+              ),
+            ),
+          ],
+        ),
 
-  pw.SizedBox(height: 20),
-  _sectionHeader("II. RECURRING POSITIVE QUESTIONS"),
-  pw.Text(
-  "The following WHQ questions were answered positively during the recorded assessments:",
-  style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
-  ),
-  pw.SizedBox(height: 8),
+        pw.SizedBox(height: 20),
+        _sectionHeader("I. CLINICAL VITALS (AVERAGED)"),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+              children: [
+                _tableCell("Vital Sign", isHeader: true),
+                _tableCell("Average Value", isHeader: true),
+                _tableCell("Reference Range", isHeader: true),
+              ],
+            ),
+            _tableRow("Body Temperature", "${vitals['temperature']}°C", "36.5 - 37.5°C"),
+            _tableRow("Heart Rate", "${vitals['heartRate']} BPM", "60 - 100 BPM"),
+            _tableRow("Blood Pressure", "${vitals['bloodPressure']}", "120/80 mmHg"),
+          ],
+        ),
 
-  if (topQuestions.isEmpty)
-  pw.Text("No positive indicators reported during this period.",
-  style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic))
-  else
-  pw.Column(
-  crossAxisAlignment: pw.CrossAxisAlignment.start,
-  children: topQuestions.map((qId) {
-  final String fullQuestion = questionMap[qId] ?? "Question ID: $qId";
-  return pw.Padding(
-  padding: const pw.EdgeInsets.only(bottom: 5),
-  child: pw.Row(
-  crossAxisAlignment: pw.CrossAxisAlignment.start,
-  children: [
-  pw.Text("- ", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-  pw.Expanded(
-  child: pw.Text(fullQuestion, style: const pw.TextStyle(fontSize: 10)),
-  ),
-  ],
-  ),
-  );
-  }).toList(),
-  ),
+        pw.SizedBox(height: 20),
+        _sectionHeader("II. RECURRING POSITIVE QUESTIONS"),
+        pw.Text(
+          "The following WHQ questions were answered positively during the recorded assessments:",
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+        ),
+        pw.SizedBox(height: 8),
 
-  pw.SizedBox(height: 25),
+        if (topQuestions.isEmpty)
+          pw.Text(
+            "No positive indicators reported during this period.",
+            style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
+          )
+        else
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: topQuestions.map((qId) {
+              final fullQuestion = questionMap[qId] ?? "Question ID: $qId";
+              return pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 5),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text("- ", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Expanded(child: pw.Text(fullQuestion, style: const pw.TextStyle(fontSize: 10))),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
 
-  // Assessment Status Box
-  pw.Container(
-  padding: const pw.EdgeInsets.all(12),
-  decoration: pw.BoxDecoration(
-  border: pw.Border.all(color: statusColor, width: 2),
-  color: isHighRisk ? PdfColors.red50 : PdfColors.green50,
-  ),
-  child: pw.Row(
-  mainAxisAlignment: pw.MainAxisAlignment.center,
-  children: [
-  pw.Text("ASSESSMENT: ",
-  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
-  pw.Text(assessmentStatus.toUpperCase(),
-  style: pw.TextStyle(
-  fontWeight: pw.FontWeight.bold,
-  fontSize: 11,
-  color: statusColor)),
-  ],
-  ),
-  ),
+        pw.SizedBox(height: 18),
 
-  pw.Spacer(),
-  pw.Divider(thickness: 0.5, color: PdfColors.grey400),
-  pw.Center(
-  child: pw.Text(
-  "Generated via WHQ Digital Monitoring. Consult a healthcare provider for clinical diagnosis.",
-  style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
-  ),
-  ),
-  ],
-  );
-  },
-  ),
+        // Assessment Status Box
+        pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: statusColor, width: 2),
+            color: isHighRisk ? PdfColors.red50 : PdfColors.green50,
+          ),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [
+              pw.Text("ASSESSMENT: ",
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+              pw.Text(
+                assessmentStatus.toUpperCase(),
+                style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 11,
+                  color: statusColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ✅ new page for images
+        pw.NewPage(),
+
+        _sectionHeader("IV. WOUND IMAGE LOG"),
+        pw.Text(
+          "Images recorded during routine daily assessments. Dates shown reflect the recording date.",
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+        ),
+        pw.SizedBox(height: 12),
+
+        if (images.isEmpty)
+          pw.Text(
+            "No wound images were recorded for this case.",
+            style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
+          )
+        else
+          pw.Wrap(
+            spacing: 10,
+            runSpacing: 12,
+            children: images.map((img) {
+              final date = img['date'] as DateTime?;
+              final dateText = date == null ? "—" : date.toString().split(' ')[0];
+              final provider = img['provider'] as pw.ImageProvider;
+
+              return pw.Container(
+                width: 160,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Container(
+                      height: 120,
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey400, width: 0.8),
+                        borderRadius: pw.BorderRadius.circular(6),
+                      ),
+                      child: pw.ClipRRect(
+                        horizontalRadius: 6,
+                        verticalRadius: 6,
+                        child: pw.Image(provider, fit: pw.BoxFit.cover),
+                      ),
+                    ),
+                    pw.SizedBox(height: 6),
+                    pw.Text(
+                      dateText,
+                      style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+      ],
+    ),
   );
 
   await Printing.layoutPdf(onLayout: (format) async => pdf.save());
