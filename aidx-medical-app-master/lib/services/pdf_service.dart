@@ -106,25 +106,46 @@ class PdfReportGenerator {
       return DateTime.tryParse(d.toString());
     }
 
-    final List<Map<String, dynamic>> allImages = [];
 
+    int _to01(dynamic v) {
+      if (v == null) return 0;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString()) ?? 0;
+    }
+
+    String _tagFor(int ery, int exu) {
+      if (ery == 1 && exu == 1) return "Erythema+ & Exudate+";
+      if (ery == 1 && exu == 0) return "Erythema+";
+      if (ery == 0 && exu == 1) return "Exudate+";
+      return "—";
+    }
+
+    final List<Map<String, dynamic>> imageEntries = [];
+
+// 1) extract images from all WHQ responses
     for (final doc in responses.docs) {
       final data = doc.data();
       final img = data['image'];
 
       if (img is Map<String, dynamic>) {
         final url = img['url']?.toString();
-        if (url != null && url.trim().isNotEmpty) {
-          allImages.add({
-            "url": url.trim(),
-            "date": _parseDate(img['date'] ?? data['createdAt']),
-          });
-        }
+        if (url == null || url.trim().isEmpty) continue;
+
+        // your fields (with fallback names)
+        final ery = _to01(img['erythrema'] ?? img['erythema'] ?? 0);
+        final exu = _to01(img['exduct'] ?? img['exudct'] ?? img['exudate'] ?? 0);
+
+        imageEntries.add({
+          "url": url.trim(),
+          "date": _parseDate(img['date'] ?? data['createdAt']),
+          "erythema": ery,
+          "exudate": exu,
+        });
       }
     }
 
-// sort by date (oldest -> newest)
-    allImages.sort((a, b) {
+// sort oldest -> newest
+    imageEntries.sort((a, b) {
       final da = a['date'] as DateTime?;
       final db = b['date'] as DateTime?;
       if (da == null && db == null) return 0;
@@ -133,16 +154,51 @@ class PdfReportGenerator {
       return da.compareTo(db);
     });
 
-    final List<Map<String, dynamic>> loadedImages = [];
+// 2) select: first + latest + ALL positives in the 3 combinations
+    final selected = <Map<String, dynamic>>[];
+    final seen = <String>{};
 
-    for (final img in allImages) {
+    void addIfNotDup(Map<String, dynamic>? e, {String? forceTag}) {
+      if (e == null) return;
+      final url = (e['url'] ?? '').toString().trim();
+      if (url.isEmpty) return;
+      if (!seen.add(url)) return;
+
+      final ery = _to01(e['erythema']);
+      final exu = _to01(e['exudate']);
+      selected.add({
+        ...e,
+        "tag": forceTag ?? _tagFor(ery, exu),
+      });
+    }
+
+// baseline + latest
+    if (imageEntries.isNotEmpty) {
+      addIfNotDup(imageEntries.first, forceTag: "Baseline (First)");
+      addIfNotDup(imageEntries.last, forceTag: "Latest");
+    }
+
+// all positives (ery/exu combos)
+    for (final e in imageEntries) {
+      final ery = _to01(e['erythema']);
+      final exu = _to01(e['exudate']);
+
+      final isMatch =
+          (ery == 1 && exu == 0) ||
+              (ery == 0 && exu == 1) ||
+              (ery == 1 && exu == 1);
+
+      if (isMatch) addIfNotDup(e);
+    }
+
+// 3) preload providers (THIS is what you pass to the PDF)
+    final loadedImages = <Map<String, dynamic>>[];
+    for (final img in selected) {
       try {
         final provider = await networkImage(img['url'] as String);
-        loadedImages.add({
-          ...img,
-          "provider": provider,
-        });
+        loadedImages.add({...img, "provider": provider});
       } catch (_) {
+        // skip broken
       }
     }
 
@@ -427,6 +483,7 @@ class PdfReportGenerator {
               final date = img['date'] as DateTime?;
               final dateText = date == null ? "—" : date.toString().split(' ')[0];
               final provider = img['provider'] as pw.ImageProvider;
+              final tag = (img['tag'] ?? '').toString();
 
               return pw.Container(
                 width: 160,
@@ -450,6 +507,7 @@ class PdfReportGenerator {
                       dateText,
                       style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
                     ),
+                    pw.Text(tag, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
                   ],
                 ),
               );
