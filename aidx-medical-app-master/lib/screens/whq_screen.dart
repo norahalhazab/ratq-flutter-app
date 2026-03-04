@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../utils/app_colors.dart';
-import '../widgets/bottom_nav.dart';
+
 import 'upload_wound_image_screen.dart';
 
 class WhqScreen extends StatefulWidget {
@@ -145,10 +145,6 @@ class _WhqScreenState extends State<WhqScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: 1,
-        onNewTap: () {},
-      ),
       body: Stack(
         children: [
           const _BlueGlassyBackground(),

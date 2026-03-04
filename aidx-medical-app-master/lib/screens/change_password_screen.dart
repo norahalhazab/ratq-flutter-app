@@ -119,7 +119,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     Text(
                       'Change Password',
                       style: GoogleFonts.dmSans(
-                        fontSize: 28,
+                        fontSize: 26,
                         fontWeight: FontWeight.w900,
                         color: AppColors.textPrimary,
                       ),

@@ -1,6 +1,9 @@
 // notification_settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -76,11 +79,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         backgroundColor: bgLight,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
+        title: Text(
           "Notifications",
-          style: TextStyle(
-            fontSize: 24,
+          style: GoogleFonts.dmSans(
+            fontSize: 26,
             fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary,
+            height: 1.0,
           ),
         ),
         leadingWidth: 90,

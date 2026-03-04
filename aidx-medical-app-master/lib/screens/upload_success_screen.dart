@@ -1,10 +1,7 @@
 import 'dart:ui'; // Required for ImageFilter
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../widgets/bottom_nav.dart';
 import '../utils/app_colors.dart';
-import 'smart_watch_simulator_screen.dart';
 import 'vitals_entry_screen.dart';
 
 
@@ -24,9 +21,6 @@ class UploadSuccessScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
 
-      // 1. Keep the navigation bar
-      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
-
       body: Stack(
         children: [
           // 2. Consistent Blue Glassy Background
@@ -40,27 +34,19 @@ class UploadSuccessScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: Row(
                     children: [
-                      // Back Button (Pill Style)
-                      _WhitePillButton(
-                        onTap: () => Navigator.pop(context),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 18,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              "Capture Wound Image",
-                              style: GoogleFonts.dmSans(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textPrimary,
-                                height: 1.0,
+                            Center(
+                              child: Text(
+                                "Capture Wound Image",
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textPrimary,
+                                  height: 1.0,
+                                ),
                               ),
                             ),
                           ],

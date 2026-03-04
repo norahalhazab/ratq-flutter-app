@@ -205,7 +205,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   Text(
                     "Notifications",
                     style: GoogleFonts.dmSans(
-                      fontSize: 28,
+                      fontSize: 26,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textPrimary,
                     ),
@@ -214,7 +214,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   Text(
                     "Daily wound check reminder",
                     style: GoogleFonts.inter(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textSecondary,
                     ),

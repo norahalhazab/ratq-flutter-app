@@ -8,9 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; // Ensure you have this package
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-
 import 'upload_success_screen.dart';
-import '../widgets/bottom_nav.dart';
 import '../utils/app_colors.dart'; // Assuming you have this file
 
 
@@ -194,7 +192,6 @@ class _UploadWoundImageScreenState extends State<UploadWoundImageScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
       body: Stack(
         children: [
           // 1. Consistent Blue Glassy Background

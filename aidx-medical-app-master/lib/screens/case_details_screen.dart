@@ -536,7 +536,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  "Wound Case details",
+                                  "Wound Case Details",
                                   style: GoogleFonts.dmSans(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w900,

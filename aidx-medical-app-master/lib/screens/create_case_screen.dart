@@ -176,17 +176,12 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                   // ===== Top bar (matches CasesScreen style) =====
                   Row(
                     children: [
-                      _IconPillButton(
-                        icon: Icons.arrow_back_ios_new_rounded,
-                        onTap: _goToCases,
-                      ),
-                      const SizedBox(width: 10),
                       Expanded(
                         child: Center(
                           child: Text(
                             "Create Wound",
                             style: GoogleFonts.dmSans(
-                              fontSize: 28,
+                              fontSize: 26,
                               fontWeight: FontWeight.w900,
                               color: AppColors.textPrimary,
                             ),
@@ -204,7 +199,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                     "Wound name",
                     style: GoogleFonts.inter(
                       fontSize: 20, // Subheading
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -221,7 +216,7 @@ class _CreateCaseScreenState extends State<CreateCaseScreen> {
                     "Surgery date",
                     style: GoogleFonts.inter(
                       fontSize: 20, // Subheading
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -571,7 +566,7 @@ class _PrimaryButton extends StatelessWidget {
             label,
             style: GoogleFonts.inter(
               fontSize: 16, // Body
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: Colors.white,
             ),
           ),
@@ -635,7 +630,7 @@ class _FaqGlassCardState extends State<_FaqGlassCard> {
                     "What happens next?",
                     style: GoogleFonts.inter(
                       fontSize: 16, // Body
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
                   ),

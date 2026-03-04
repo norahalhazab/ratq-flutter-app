@@ -332,7 +332,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                       Text(
                         'Profile',
                         style: GoogleFonts.dmSans(
-                          fontSize: 22,
+                          fontSize: 26,
                           fontWeight: FontWeight.w700,
                           color: const Color(0xFF0F172A),
                         ),
@@ -369,7 +369,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                         _profileImageUrl!.isEmpty))
                                     ? const Icon(
                                   Icons.person,
-                                  size: 34,
+                                  size: 40,
                                   color: Color(0xFF64748B),
                                 )
                                     : null,
