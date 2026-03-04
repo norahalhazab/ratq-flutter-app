@@ -21,13 +21,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _OnbModel(
       title: "Welcome to Ratq",
       subtitle:
-      "Track your wound healing and get early infection risk signals with quick daily check-ins.",
+      "Monitor your post-surgical wound and receive an infection risk indication based on your daily assessment.",
       buttonText: "Next",
     ),
     _OnbModel(
-      title: "Daily check in seconds",
+      title: "Daily Infection Risk Assessment",
       subtitle:
-      "Answer the WHQ questionnaire and capture a wound photo to get an infection risk score.",
+      "Upload a wound image, complete a symptom questionnaire, and record your temperature to receive a risk indication.",
       buttonText: "Next",
     ),
     _OnbModel(
@@ -118,14 +118,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           Align(
                             alignment: Alignment.topCenter,
                             child: Padding(
-                              padding: const EdgeInsets.only(top: 60),
-                              child: Image.asset(
-                                "assets/images/logo2.png",
-                                height: 220,
-                                width: 220,
-                                fit: BoxFit.contain,
-                              ),
+                              padding: const EdgeInsets.only(top: 120), // controls vertical position
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    "assets/images/onb_3.png",
+                                    height: 400, // bigger
+                                    width: 400,
+                                    fit: BoxFit.contain,
+                                  ),
 
+                                ],
+                              ),
                             ),
                           ),
                       ],
@@ -178,7 +183,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       Text(
                         pages[_index].title,
                         style: const TextStyle(
-                          fontSize: 48,
+                          fontSize: 42,
                           fontWeight: FontWeight.w900,
                           height: 1.02,
                           color: Colors.white,
