@@ -42,6 +42,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       if (!mounted) return;
       _toast("Reset link sent to your email");
       Navigator.pop(context);
+    } on FirebaseAuthException catch (e) {
+      // ✅ This shows the real Firebase error code
+      _toast("${e.code}: ${e.message}");
+
     } catch (e) {
       _toast(e.toString());
     } finally {
