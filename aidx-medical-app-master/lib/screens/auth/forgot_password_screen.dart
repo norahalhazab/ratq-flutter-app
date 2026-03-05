@@ -71,7 +71,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   const Text(
                     "Reset Password",
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: 28,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       letterSpacing: -0.5,
@@ -95,11 +95,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text(
-                        "Please enter your registered email address below to receive reset instructions.",
+                        "Please enter your registered email address below to receive reset link.",
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           color: Color(0xFF5B5F5F),
                         ),
                       ),
