@@ -1,16 +1,15 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:ui'; // Required for ImageFilter
+import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart'; // Ensure you have this package
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'upload_success_screen.dart';
-import '../utils/app_colors.dart'; // Assuming you have this file
-
+import '../utils/app_colors.dart';
 
 
 class UploadWoundImageScreen extends StatefulWidget {
