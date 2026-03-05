@@ -18,6 +18,11 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
   @override
   void initState() {
     super.initState();
+
+    // ✅ Auto-connect as soon as this screen opens
+    // (won't re-connect if your service already handles that internally)
+    service.connect();
+
     service.vitalsStream.listen((_) {
       if (mounted) setState(() {});
     });
@@ -27,7 +32,6 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
   Widget build(BuildContext context) {
     final hr = service.heartRate;
     final bp = service.bloodPressure;
-
     final connected = service.isConnected;
 
     return Scaffold(
@@ -35,7 +39,7 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
         title: Text(
           "Smart Watch",
           style: GoogleFonts.dmSans(
-            fontSize: 28,
+            fontSize: 26,
             fontWeight: FontWeight.w900,
             color: AppColors.textPrimary,
           ),
@@ -61,21 +65,17 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
 
               const Spacer(),
 
-              // ✅ Connect button only
+              // ✅ Connect / Connected button (same colors, never "disabled" so it won't dim)
               SizedBox(
                 width: double.infinity,
                 height: 58,
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(999),
-                    gradient: LinearGradient(
-                      colors: connected
-                          ? const [
-                        Color(0xFF2E7D32), // green (connected)
-                        Color(0xFF66BB6A),
-                      ]
-                          : const [
-                        Color(0xFF3B7691), // blue (connect)
+                    // ✅ Keep the SAME light gradient like before (no dark/disabled look)
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF3B7691),
                         Color(0xFF5FA3BC),
                       ],
                     ),
@@ -88,9 +88,10 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
                     ],
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: connected
-                        ? null // ✅ no disconnect functionality
-                        : () => service.connect(),
+                    // ✅ Keep it enabled; if connected do nothing
+                    onPressed: () {
+                      if (!connected) service.connect();
+                    },
                     icon: Icon(
                       connected
                           ? Icons.bluetooth_connected
@@ -108,8 +109,6 @@ class _SmartWatchSimulatorScreenState extends State<SmartWatchSimulatorScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
-                      disabledBackgroundColor: Colors.transparent,
-                      disabledForegroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(999),
                       ),
@@ -147,7 +146,6 @@ class _WatchMock extends StatelessWidget {
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          // Side buttons behind
           Positioned(
             right: -6,
             top: 140,
@@ -159,7 +157,6 @@ class _WatchMock extends StatelessWidget {
             child: _SideButton(),
           ),
 
-          // Watch body
           Container(
             width: 270,
             height: 340,
@@ -216,8 +213,6 @@ class _WatchMock extends StatelessWidget {
                         label: "BP",
                         value: bloodPressure,
                       ),
-
-                      // ✅ Temp removed
                     ],
                   ),
                 ),

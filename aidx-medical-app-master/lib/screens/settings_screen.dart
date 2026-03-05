@@ -49,7 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: Text(
           "Settings",
           style: GoogleFonts.dmSans(
-            fontSize: 28,
+            fontSize: 26,
             fontWeight: FontWeight.w900,
             color: AppColors.textPrimary,
           ),

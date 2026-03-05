@@ -159,7 +159,7 @@ class _HomepageState extends State<Homepage> {
                                     CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "Hello, welcome back",
+                                        "Hello, ",
                                         style: GoogleFonts.inter(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w800,

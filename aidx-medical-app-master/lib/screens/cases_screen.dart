@@ -9,7 +9,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/bottom_nav.dart';
 import 'case_details_screen.dart';
 import 'create_case_screen.dart';
-import 'Homepage.dart';
 import 'whq_screen.dart';
 import '../utils/app_colors.dart';
 
@@ -286,7 +285,7 @@ class _CasesScreenState extends State<CasesScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "Wound cases",
+                                  "Wound Cases",
                                   style: GoogleFonts.dmSans(
                                     fontSize: 28,
                                     fontWeight: FontWeight.w900,
