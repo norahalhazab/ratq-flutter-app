@@ -324,7 +324,7 @@ class PdfReportGenerator {
           pw.Center(
             child: pw.Text(
               "Consult a healthcare provider for clinical diagnosis.",
-              style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
             ),
           ),
         ],
@@ -341,16 +341,16 @@ class PdfReportGenerator {
                 pw.Text("WOUND ASSESSMENT SUMMARY",
                     style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
                 pw.Text("Clinical Documentation - Patient Report",
-                    style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                    style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
                 pw.Text(
                   "This report provides a summary of the data recorded throughout the patient's monitoring period during routine daily checkups.",
-                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+                  style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
                 ),
               ],
             ),
             pw.Text(
               "DATE: ${DateTime.now().toString().split(' ')[0]}",
-              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
             ),
           ],
         ),
@@ -407,14 +407,14 @@ class PdfReportGenerator {
         _sectionHeader("II. RECURRING POSITIVE QUESTIONS"),
         pw.Text(
           "The following WHQ questions were answered positively during the recorded assessments:",
-          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
         ),
         pw.SizedBox(height: 8),
 
         if (topQuestions.isEmpty)
           pw.Text(
             "No positive indicators reported during this period.",
-            style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
+            style: pw.TextStyle(fontSize: 11, fontStyle: pw.FontStyle.italic),
           )
         else
           pw.Column(
@@ -427,7 +427,7 @@ class PdfReportGenerator {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text("- ", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                    pw.Expanded(child: pw.Text(fullQuestion, style: const pw.TextStyle(fontSize: 10))),
+                    pw.Expanded(child: pw.Text(fullQuestion, style: const pw.TextStyle(fontSize: 11))),
                   ],
                 ),
               );
@@ -447,12 +447,12 @@ class PdfReportGenerator {
             mainAxisAlignment: pw.MainAxisAlignment.center,
             children: [
               pw.Text("ASSESSMENT: ",
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
               pw.Text(
                 assessmentStatus.toUpperCase(),
                 style: pw.TextStyle(
                   fontWeight: pw.FontWeight.bold,
-                  fontSize: 11,
+                  fontSize: 12,
                   color: statusColor,
                 ),
               ),
@@ -466,7 +466,7 @@ class PdfReportGenerator {
         _sectionHeader("IV. WOUND IMAGE LOG"),
         pw.Text(
           "Images recorded during routine daily assessments. Dates shown reflect the recording date.",
-          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
         ),
         pw.SizedBox(height: 12),
 
@@ -505,9 +505,9 @@ class PdfReportGenerator {
                     pw.SizedBox(height: 6),
                     pw.Text(
                       dateText,
-                      style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
                     ),
-                    pw.Text(tag, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                    pw.Text(tag, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
                   ],
                 ),
               );
