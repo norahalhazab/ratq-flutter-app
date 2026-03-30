@@ -132,7 +132,6 @@ class _VitalsEntryScreenState extends State<VitalsEntryScreen> {
         "temperature": double.parse(temp.toStringAsFixed(1)),
         "heartRate": _service.heartRate,
         "bloodPressure": _service.bloodPressure,
-        "fromWatch": _service.isConnected, // (إذا تبينه ينشال قولي)
         "capturedAt": FieldValue.serverTimestamp(),
       };
 
